@@ -2,157 +2,145 @@
 setlocal EnableDelayedExpansion
 
 echo ============================================
-echo   VIVE SiteOwl XR - Automated Setup
+echo   VIVE SiteOwl XR - ROBUST AUTO SETUP
 echo ============================================
 echo.
-echo This will help set up everything automatically
+echo This script finds Git (even if not in PATH),
+echo locates your project, checks Unity Hub, and opens everything.
 echo.
 
-:: Check if running as admin (not needed, but helpful to know)
-net session >nul 2>&1
-if %errorLevel% == 0 (
-    echo [OK] Running with administrator privileges
-) else (
-    echo [INFO] Running without admin (normal - this is fine)
+:: --- STEP 1/5: FIND GIT (Check common paths + PATH) ---
+echo [1/5] Locating Git installation...
+echo     Checking standard installation directories...
+
+set "GIT_EXE="
+:: Check 64-bit standard path
+if exist "C:\Program Files\Git\cmd\git.exe" (
+    set "GIT_EXE=C:\Program Files\Git\cmd\git.exe"
+    echo     [OK] Found at: C:\Program Files\Git\cmd\
 )
-
-echo.
-echo Step 1/5: Checking Git installation...
-echo ----------------------------------------
-
-where git >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [MISSING] Git not found!
-    echo.
-    echo Would you like me to open the Git download page?
-    choice /C YN /M "Open browser to download Git"
-    if !errorlevel! equ 1 (
-        start https://git-scm.com/download/win
-        echo.
-        echo Please:
-        echo 1. Download Git from the page that opened
-        echo 2. Install it (accept all defaults)
-        echo 3. Restart this script
-        echo.
-        pause
-        exit /b 1
-    ) else (
-        echo You need Git installed. Cannot continue.
-        pause
-        exit /b 1
+:: Check 32-bit standard path (fallback)
+if not defined GIT_EXE (
+    if exist "C:\Program Files (x86)\Git\cmd\git.exe" (
+        set "GIT_EXE=C:\Program Files (x86)\Git\cmd\git.exe"
+        echo     [OK] Found at: C:\Program Files (x86)\Git\cmd\
     )
-) else (
-    for /f "tokens=*" %%a in ('git --version') do set GIT_VERSION=%%a
-    echo [OK] Found: !GIT_VERSION!
 )
-
-echo.
-echo Step 2/5: Cloning repository...
-echo ----------------------------------------
-
-set REPO_URL=https://github.com/Maximt23/VIVE-SiteOwl-XR-project.git
-set PROJECT_DIR=%USERPROFILE%\Documents\VIVE-SiteOwl-XR
-
-if exist "%PROJECT_DIR%" (
-    echo [INFO] Project folder already exists at:
-    echo %PROJECT_DIR%
-    echo.
-    choice /C YN /M "Delete and re-clone (Y) or use existing (N)"
-    if !errorlevel! equ 1 (
-        echo Removing existing folder...
-        rmdir /S /Q "%PROJECT_DIR%"
-    ) else (
-        echo Using existing folder.
-        goto :skip_clone
+:: Check user-local install path
+if not defined GIT_EXE (
+    if exist "%LocalAppData%\Programs\Git\cmd\git.exe" (
+        set "GIT_EXE=%LocalAppData%\Programs\Git\cmd\git.exe"
+        echo     [OK] Found at: %LocalAppData%\Programs\Git\cmd\
+    )
+)
+:: Check via WHERE command
+if not defined GIT_EXE (
+    for /f "delims=" %%a in ('where git.exe 2^>nul') do (
+        set "GIT_EXE=%%a"
+        echo     [OK] Found in PATH: %%a
     )
 )
 
-echo Cloning from GitHub...
-echo (This may take 1-2 minutes)
-git clone %REPO_URL% "%PROJECT_DIR%"
-
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to clone repository!
+if not defined GIT_EXE (
     echo.
-    echo Possible issues:
-    echo - No internet connection
-    echo - GitHub is blocked
-    echo - Repository URL changed
+    echo [ERROR] Could not find git.exe!
     echo.
+    echo Git IS installed but not in standard locations.
+    echo.
+    echo PERMANENT FIX:
+    echo 1. Reinstall Git: https://git-scm.com/download/win
+    echo 2. CHECK this box during install: "Add to PATH"
+    echo.
+    echo TEMPORARY FIX - Choose one:
+    echo A) Copy this .bat file to: C:\Program Files\Git\cmd\
+    echo    Then run it from there
+    echo B) Run this in Command Prompt first:
+    echo    set PATH=%PATH%;C:\Program Files\Git\cmd
+    echo    Then run this .bat
     pause
     exit /b 1
 )
 
-echo [OK] Repository cloned successfully!
+:: Verify Git works
+for /f "tokens=*" %%a in ('"%GIT_EXE%" --version') do (
+    echo     [OK] Git version: %%a
+)
 
-:skip_clone
+:: --- STEP 2/5: FIND PROJECT FOLDER ---
 echo.
-echo Step 3/5: Checking Unity Hub...
-echo ----------------------------------------
+echo [2/5] Locating project files...
 
-set UNITY_HUB_PATH=%ProgramFiles%\Unity Hub\Unity Hub.exe
-set UNITY_HUB_PATH_2=%LOCALAPPDATA%\Programs\Unity Hub\Unity Hub.exe
+set "PROJECT_DIR=%~dp0"
+if "%PROJECT_DIR:~-1%"=="\" set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
 
-if exist "%UNITY_HUB_PATH%" (
-    echo [OK] Unity Hub found: %UNITY_HUB_PATH%
-    set UNITY_HUB=%UNITY_HUB_PATH%
-) else if exist "%UNITY_HUB_PATH_2%" (
-    echo [OK] Unity Hub found: %UNITY_HUB_PATH_2%
-    set UNITY_HUB=%UNITY_HUB_PATH_2%
+if exist "%PROJECT_DIR%\UnityProject\Assets" (
+    echo     [OK] Project found at: %PROJECT_DIR%
+    set "UNITY_PROJECT_PATH=%PROJECT_DIR%\UnityProject"
+) else if exist "%PROJECT_DIR%\VIVE-SiteOwl-XR-Capture\UnityProject\Assets" (
+    set "PROJECT_DIR=%PROJECT_DIR%\VIVE-SiteOwl-XR-Capture"
+    echo     [OK] Project found at: %PROJECT_DIR%
+    set "UNITY_PROJECT_PATH=%PROJECT_DIR%\UnityProject"
 ) else (
-    echo [MISSING] Unity Hub not found!
-    echo.
-    echo You need to:
-    echo 1. Download Unity Hub from: https://unity.com/download
-    echo 2. Install it
-    echo 3. Run Unity Hub and sign in
-    echo 4. Run this script again
-    echo.
-    choice /C YN /M "Open Unity download page now"
-    if !errorlevel! equ 1 (
-        start https://unity.com/download
-    )
+    echo [WARNING] UnityProject not found here: %PROJECT_DIR%
     pause
     exit /b 1
 )
 
+:: --- STEP 3/5: UPDATE FROM GITHUB ---
 echo.
-echo Step 4/5: Adding project to Unity Hub...
-echo ----------------------------------------
+echo [3/5] Checking for updates...
+cd /d "%PROJECT_DIR%"
 
-echo Opening Unity Hub and adding project...
-echo (Unity Hub should open automatically)
-
-"%UNITY_HUB%" -- --projectPath "%PROJECT_DIR%\UnityProject"
-
-echo.
-echo [OK] Project added to Unity Hub!
-
-echo.
-echo Step 5/5: Setup Summary
-echo ----------------------------------------
-echo.
-echo ✓ Git installed: %GIT_VERSION%
-echo ✓ Project cloned to: %PROJECT_DIR%
-echo ✓ Unity Hub opened with project
-echo.
-echo NEXT STEPS:
-echo ----------------------------------------
-echo 1. Unity Hub should be open now
-echo 2. Look for "VIVE-SiteOwl-XR" in the projects list
-echo 3. If Unity version is missing, click "Install Unity 2022.3 LTS"
-echo 4. Click on the project name to open it
-echo 5. Once Unity opens, go to: Tools -^> CCTV Survey -^> Build Working Scene
-echo.
-echo Need help? Check SETUP_FOR_BEGINNERS.md
-echo.
-
-choice /C YN /M "Open Unity Hub now (should already be open)"
-if !errorlevel! equ 1 (
-    start "" "%UNITY_HUB%"
+"%GIT_EXE%" status >nul 2>&1
+if %errorlevel% equ 0 (
+    "%GIT_EXE%" pull origin main 2>nul
+    if %errorlevel% equ 0 (
+        echo     [OK] Updated from GitHub
+    ) else (
+        echo     [INFO] No updates (or ZIP download)
+    )
+) else (
+    echo     [INFO] ZIP download detected (no git repo)
 )
 
+:: --- STEP 4/5: FIND UNITY HUB ---
 echo.
-echo Setup complete! 🎉
+echo [4/5] Locating Unity Hub...
+
+set "UNITY_HUB="
+if exist "C:\Program Files\Unity Hub\Unity Hub.exe" set "UNITY_HUB=C:\Program Files\Unity Hub\Unity Hub.exe"
+if not defined UNITY_HUB if exist "%LOCALAPPDATA%\Programs\Unity Hub\Unity Hub.exe" set "UNITY_HUB=%LOCALAPPDATA%\Programs\Unity Hub\Unity Hub.exe"
+
+if not defined UNITY_HUB (
+    echo [WARNING] Unity Hub not found!
+    echo Download: https://unity.com/download
+    pause
+    exit /b 1
+)
+
+echo     [OK] Found Unity Hub
+
+:: --- STEP 5/5: OPEN PROJECT ---
+echo.
+echo [5/5] Opening project...
+echo.
+
+"%UNITY_HUB%" -- --projectPath "%UNITY_PROJECT_PATH%"
+
+echo.
+echo ============================================
+echo   ✅ SETUP COMPLETE!
+echo ============================================
+echo.
+echo Unity Hub is launching your project now.
+echo.
+echo NEXT:
+echo 1. Wait for Unity to load (pink bar)
+echo 2. Install packages: Window -> Package Manager
+    - XR Plugin Management
+    - OpenXR Plugin
+    - XR Interaction Toolkit
+    - TextMeshPro
+echo 3. Tools -> CCTV Survey -> Build Working Scene
 echo.
 pause
