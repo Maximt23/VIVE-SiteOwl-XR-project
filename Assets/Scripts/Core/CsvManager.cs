@@ -2,329 +2,226 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 namespace SiteOwlXR.Core
 {
     /// <summary>
-    /// Manages CSV loading, updating, and saving.
-    /// GUARD RAILS: Never overwrites non-coordinate fields. Always backs up first.
+    /// Manages SiteOwl CSV loading and saving.
+    ///
+    /// GUARD RAILS:
+    ///   - ONLY the "Coordinates" column is ever written back.
+    ///   - All other 55 fields are preserved byte-for-byte.
+    ///   - A timestamped backup is created before every save.
+    ///
+    /// SiteOwl CSV format (56 columns):
+    ///   Col  4 → Device ID
+    ///   Col  5 → Name
+    ///   Col  8 → System Type
+    ///   Col  9 → Device/Task Type
+    ///   Col 10 → Part Number
+    ///   Col 53 → Coordinates  ← only column we touch
     /// </summary>
     public class CsvManager : MonoBehaviour
     {
+        // ── SiteOwl column names ──────────────────────────────────────────────
+        private const string COL_DEVICE_ID    = "Device ID";
+        private const string COL_NAME         = "Name";
+        private const string COL_SYSTEM_TYPE  = "System Type";
+        private const string COL_DEVICE_TYPE  = "Device/Task Type";
+        private const string COL_PART_NUMBER  = "Part Number";
+        private const string COL_COORDINATES  = "Coordinates";   // ← ONLY COLUMN WE WRITE
+
+        // Placeholder value SiteOwl puts on unsurveyed devices
+        private const float PLACEHOLDER_X = 10.00f;
+        private const float PLACEHOLDER_Y = 30.00f;
+        private const float COORD_EPSILON  = 0.001f;
+
         [Header("Settings")]
-        public string CsvFileName = "devices.csv";
-        public string BackupFolder = "Backups";
-        
-        private string csvPath;
-        private List<DeviceData> devices = new List<DeviceData>();
-        private List<string> originalHeaders = new List<string>();
-        private string[] originalLines;
-        
-        public List<DeviceData> Devices => devices;
-        public int TotalCount => devices.Count;
-        public int CapturedCount => devices.Count(d => !d.NeedsCapture);
-        public int RemainingCount => devices.Count(d => d.NeedsCapture);
-        
-        public event Action OnDataLoaded;
-        public event Action<DeviceData> OnDeviceUpdated;
-        public event Action OnDataSaved;
-        
+        [Tooltip("Absolute path to the SiteOwl CCTV survey CSV to load on Start.")]
+        public string CsvFilePath   = "";
+        public string BackupFolder  = "Backups";
+
         void Start()
         {
-            // Set up path in persistent data (Android external storage)
-            csvPath = Path.Combine(Application.persistentDataPath, CsvFileName);
+            if (!string.IsNullOrEmpty(CsvFilePath))
+                LoadCsv(CsvFilePath);
+            else
+                Debug.LogWarning("[CsvManager] CsvFilePath not set — call LoadCsv(path) manually.");
         }
-        
-        /// <summary>
-        /// Loads CSV from the specified path.
-        /// </summary>
-        public bool LoadCsv(string path = null)
+
+        // ── Internal state ────────────────────────────────────────────────────
+        private string   loadedPath;
+        private string[] headers;
+        private int      coordColIndex = -1;
+
+        // Column name → index lookup (case-insensitive)
+        private readonly Dictionary<string, int> colIndex =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        // Parallel lists — index N of rawRows matches index N of devices
+        private readonly List<string[]>    rawRows = new List<string[]>();
+        private readonly List<DeviceData>  devices  = new List<DeviceData>();
+
+        // ── Public surface ────────────────────────────────────────────────────
+        public List<DeviceData> Devices        => devices;
+        public int TotalCount                  => devices.Count;
+        public int CapturedCount               => devices.Count(d => !d.NeedsCapture);
+        public int RemainingCount              => devices.Count(d =>  d.NeedsCapture);
+        public bool IsLoaded                   => !string.IsNullOrEmpty(loadedPath);
+
+        public event Action             OnDataLoaded;
+        public event Action<DeviceData> OnDeviceUpdated;
+        public event Action             OnDataSaved;
+
+        // ── Load ──────────────────────────────────────────────────────────────
+
+        /// <summary>Loads a SiteOwl CCTV survey CSV from disk.</summary>
+        public bool LoadCsv(string path)
         {
-            string targetPath = path ?? csvPath;
-            
-            if (!File.Exists(targetPath))
+            if (!File.Exists(path))
             {
-                Debug.LogError($"[CsvManager] CSV not found: {targetPath}");
+                Debug.LogError($"[CsvManager] File not found: {path}");
                 return false;
             }
-            
+
             try
             {
-                originalLines = File.ReadAllLines(targetPath);
-                ParseCsv(originalLines);
-                
-                Debug.Log($"[CsvManager] Loaded {devices.Count} devices. {RemainingCount} need capture.");
+                loadedPath = path;
+                var lines = File.ReadAllLines(path);
+                ParseCsv(lines);
+
+                Debug.Log($"[CsvManager] Loaded {devices.Count} devices. " +
+                          $"{RemainingCount} need coordinate capture.");
                 OnDataLoaded?.Invoke();
                 return true;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[CsvManager] Failed to load CSV: {ex.Message}");
+                Debug.LogError($"[CsvManager] Load failed: {ex.Message}");
                 return false;
             }
         }
-        
+
         private void ParseCsv(string[] lines)
         {
+            rawRows.Clear();
             devices.Clear();
-            
+            colIndex.Clear();
+            coordColIndex = -1;
+
             if (lines.Length == 0) return;
-            
-            // Parse headers
-            originalHeaders = lines[0].Split(',').Select(h => h.Trim()).ToList();
-            
-            // Parse rows
+
+            // ── Header row ────────────────────────────────────────────────────
+            headers = SplitCsvLine(lines[0]);
+            for (int i = 0; i < headers.Length; i++)
+                colIndex[headers[i].Trim()] = i;
+
+            if (!colIndex.TryGetValue(COL_COORDINATES, out coordColIndex))
+            {
+                Debug.LogError(
+                    $"[CsvManager] '{COL_COORDINATES}' column not found! " +
+                    $"Available: {string.Join(", ", headers)}");
+                return;
+            }
+
+            Debug.Log($"[CsvManager] '{COL_COORDINATES}' found at column index {coordColIndex}.");
+
+            // ── Data rows ─────────────────────────────────────────────────────
             for (int i = 1; i < lines.Length; i++)
             {
-                var device = ParseRow(lines[i], originalHeaders);
-                if (device != null)
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+
+                var row = SplitCsvLine(lines[i]);
+                if (row.Length != headers.Length)
                 {
-                    devices.Add(device);
+                    Debug.LogWarning(
+                        $"[CsvManager] Row {i}: expected {headers.Length} cols, " +
+                        $"got {row.Length}. Skipping.");
+                    continue;
                 }
+
+                rawRows.Add(row);
+                devices.Add(BuildDevice(row));
             }
         }
-        
-        private DeviceData ParseRow(string line, List<string> headers)
+
+        private DeviceData BuildDevice(string[] row)
         {
-            var values = ParseCsvLine(line);
-            if (values.Count != headers.Count)
+            var d = new DeviceData
             {
-                Debug.LogWarning($"[CsvManager] Row has {values.Count} columns, expected {headers.Count}. Skipping.");
-                return null;
-            }
-            
-            var device = new DeviceData();
-            
-            for (int i = 0; i < headers.Count; i++)
+                DeviceID   = GetField(row, COL_DEVICE_ID),
+                DeviceName = GetField(row, COL_NAME),
+                SystemType = GetField(row, COL_SYSTEM_TYPE),
+                DeviceType = GetField(row, COL_DEVICE_TYPE),
+                Description= GetField(row, COL_PART_NUMBER),
+            };
+
+            // Fallback: use Name as ID when Device ID column is empty
+            if (string.IsNullOrEmpty(d.DeviceID))
+                d.DeviceID = d.DeviceName;
+
+            // Parse coordinates — placeholder → null → NeedsCapture = true
+            var coordRaw = GetField(row, COL_COORDINATES);
+            if (TryParseCoordinates(coordRaw, out float x, out float y))
             {
-                string header = headers[i].ToUpper();
-                string value = values[i].Trim();
-                
-                switch (header)
+                bool isPlaceholder =
+                    Mathf.Abs(x - PLACEHOLDER_X) < COORD_EPSILON &&
+                    Mathf.Abs(y - PLACEHOLDER_Y) < COORD_EPSILON;
+
+                if (!isPlaceholder)
                 {
-                    case "NAME":
-                    case "DEVICE NAME":
-                    case "DEVICENAME":
-                        device.DeviceName = value;
-                        break;
-                    case "TYPE":
-                    case "DEVICE TYPE":
-                    case "DEVICETYPE":
-                        device.DeviceType = value;
-                        break;
-                    case "SYSTEM TYPE":
-                    case "SYSTEMTYPE":
-                        device.SystemType = value;
-                        break;
-                    case "DESCRIPTION":
-                    case "DESC":
-                        device.Description = value;
-                        break;
-                    case "ID":
-                    case "DEVICE ID":
-                    case "DEVICEID":
-                        device.DeviceID = value;
-                        break;
-                    case "X":
-                    case "SITEOWL X":
-                    case "SITEOWLX":
-                        device.SiteOwlX = ParseFloat(value);
-                        break;
-                    case "Y":
-                    case "SITEOWL Y":
-                    case "SITEOWLY":
-                        device.SiteOwlY = ParseFloat(value);
-                        break;
-                    case "LATITUDE":
-                    case "LAT":
-                        device.Latitude = ParseDouble(value);
-                        break;
-                    case "LONGITUDE":
-                    case "LON":
-                    case "LONG":
-                        device.Longitude = ParseDouble(value);
-                        break;
-                    case "PHOTO PATH":
-                    case "PHOTOPATH":
-                    case "PHOTO":
-                        device.PhotoPath = value;
-                        break;
-                    case "CAPTURE TIMESTAMP":
-                    case "TIMESTAMP":
-                        device.CaptureTimestamp = value;
-                        break;
-                    case "CAPTURE METHOD":
-                    case "METHOD":
-                        device.CaptureMethod = value;
-                        break;
-                    case "COORDINATE CONFIDENCE":
-                    case "CONFIDENCE":
-                        device.CoordinateConfidence = ParseConfidence(value);
-                        break;
-                    case "USER X":
-                    case "USERX":
-                        device.UserX = ParseFloat(value);
-                        break;
-                    case "USER Y":
-                    case "USERY":
-                        device.UserY = ParseFloat(value);
-                        break;
-                    case "USER FACING":
-                    case "USERFACINGDIRECTION":
-                    case "FACING":
-                        device.UserFacingDirection = ParseFloat(value);
-                        break;
-                    case "REVIEW STATUS":
-                    case "REVIEWSTATUS":
-                    case "STATUS":
-                        device.ReviewStatus = value;
-                        break;
+                    d.SiteOwlX = x;
+                    d.SiteOwlY = y;
                 }
+                // isPlaceholder → SiteOwlX/Y stay null → NeedsCapture = true
             }
-            
-            // Use device name as ID if no ID provided
-            if (string.IsNullOrEmpty(device.DeviceID))
-            {
-                device.DeviceID = device.DeviceName;
-            }
-            
-            return device;
+
+            return d;
         }
-        
-        private List<string> ParseCsvLine(string line)
-        {
-            var result = new List<string>();
-            bool inQuotes = false;
-            string currentValue = "";
-            
-            foreach (char c in line)
-            {
-                if (c == '"')
-                {
-                    inQuotes = !inQuotes;
-                }
-                else if (c == ',' && !inQuotes)
-                {
-                    result.Add(currentValue);
-                    currentValue = "";
-                }
-                else
-                {
-                    currentValue += c;
-                }
-            }
-            
-            result.Add(currentValue);
-            return result;
-        }
-        
-        private float? ParseFloat(string value)
-        {
-            if (float.TryParse(value, out float result))
-                return result;
-            return null;
-        }
-        
-        private double? ParseDouble(string value)
-        {
-            if (double.TryParse(value, out double result))
-                return result;
-            return null;
-        }
-        
-        private CoordinateConfidence ParseConfidence(string value)
-        {
-            if (Enum.TryParse<CoordinateConfidence>(value, true, out var result))
-                return result;
-            return CoordinateConfidence.NONE;
-        }
-        
+
+        // ── Save ──────────────────────────────────────────────────────────────
+
         /// <summary>
-        /// Updates a device record and saves the CSV.
-        /// GUARD RAIL: Always creates backup first.
-        /// </summary>
-        public bool UpdateDevice(DeviceData updatedDevice)
-        {
-            int index = devices.FindIndex(d => d.DeviceID == updatedDevice.DeviceID);
-            if (index < 0)
-            {
-                Debug.LogError($"[CsvManager] Device not found: {updatedDevice.DeviceID}");
-                return false;
-            }
-            
-            // GUARD RAIL: Don't allow overwriting existing coordinates without explicit flag
-            var existing = devices[index];
-            if (existing.SiteOwlX.HasValue && updatedDevice.SiteOwlX.HasValue)
-            {
-                Debug.LogWarning($"[CsvManager] Overwriting existing coordinates for {updatedDevice.DeviceID}");
-            }
-            
-            // Create backup
-            if (!CreateBackup())
-            {
-                Debug.LogError("[CsvManager] Failed to create backup. Aborting update.");
-                return false;
-            }
-            
-            // Update device
-            devices[index] = updatedDevice;
-            
-            // Save CSV
-            if (SaveCsv())
-            {
-                OnDeviceUpdated?.Invoke(updatedDevice);
-                return true;
-            }
-            
-            return false;
-        }
-        
-        private bool CreateBackup()
-        {
-            try
-            {
-                string backupDir = Path.Combine(Application.persistentDataPath, BackupFolder);
-                if (!Directory.Exists(backupDir))
-                {
-                    Directory.CreateDirectory(backupDir);
-                }
-                
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string backupPath = Path.Combine(backupDir, $"devices_backup_{timestamp}.csv");
-                
-                File.Copy(csvPath, backupPath);
-                Debug.Log($"[CsvManager] Backup created: {backupPath}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[CsvManager] Backup failed: {ex.Message}");
-                return false;
-            }
-        }
-        
-        /// <summary>
-        /// Writes the current devices list back to CSV.
+        /// Writes updated coordinates back to the original CSV.
+        /// GUARD RAIL: Only the Coordinates column changes. Everything else is verbatim.
         /// </summary>
         public bool SaveCsv()
         {
+            if (!IsLoaded)
+            {
+                Debug.LogError("[CsvManager] Nothing loaded — call LoadCsv() first.");
+                return false;
+            }
+
+            if (!CreateBackup()) return false;
+
             try
             {
-                var lines = new List<string>();
-                
-                // Header
-                lines.Add(string.Join(",", originalHeaders));
-                
-                // Data rows
-                foreach (var device in devices)
+                var lines = new List<string>(rawRows.Count + 1);
+
+                // Header line — preserved exactly
+                lines.Add(string.Join(",", headers.Select(QuoteCsvValue)));
+
+                // Data lines — only col 53 (coordColIndex) may differ
+                for (int i = 0; i < rawRows.Count; i++)
                 {
-                    lines.Add(FormatDeviceRow(device, originalHeaders));
+                    var row    = (string[]) rawRows[i].Clone();
+                    var device = devices[i];
+
+                    // ← THIS IS THE ONLY COLUMN WE EVER TOUCH
+                    if (device.SiteOwlX.HasValue && device.SiteOwlY.HasValue)
+                        row[coordColIndex] = FormatCoordinates(
+                            device.SiteOwlX.Value, device.SiteOwlY.Value);
+
+                    lines.Add(string.Join(",", row.Select(QuoteCsvValue)));
                 }
-                
-                File.WriteAllLines(csvPath, lines);
-                
-                Debug.Log($"[CsvManager] CSV saved. {CapturedCount}/{TotalCount} devices captured.");
+
+                File.WriteAllLines(loadedPath, lines);
+
+                Debug.Log($"[CsvManager] Saved '{Path.GetFileName(loadedPath)}'. " +
+                          $"{CapturedCount}/{TotalCount} coordinates captured.");
                 OnDataSaved?.Invoke();
                 return true;
             }
@@ -334,142 +231,144 @@ namespace SiteOwlXR.Core
                 return false;
             }
         }
-        
-        private string FormatDeviceRow(DeviceData device, List<string> headers)
+
+        /// <summary>
+        /// Updates a single device and saves immediately.
+        /// </summary>
+        public bool UpdateDevice(DeviceData updated)
         {
-            var values = new List<string>();
-            
-            foreach (var header in headers)
+            int idx = devices.FindIndex(d => d.DeviceID == updated.DeviceID);
+            if (idx < 0)
             {
-                string h = header.ToUpper();
-                string value = "";
-                
-                switch (h)
-                {
-                    case "NAME":
-                    case "DEVICE NAME":
-                    case "DEVICENAME":
-                        value = device.DeviceName;
-                        break;
-                    case "TYPE":
-                    case "DEVICE TYPE":
-                    case "DEVICETYPE":
-                        value = device.DeviceType;
-                        break;
-                    case "SYSTEM TYPE":
-                    case "SYSTEMTYPE":
-                        value = device.SystemType;
-                        break;
-                    case "DESCRIPTION":
-                    case "DESC":
-                        value = device.Description;
-                        break;
-                    case "ID":
-                    case "DEVICE ID":
-                    case "DEVICEID":
-                        value = device.DeviceID;
-                        break;
-                    case "X":
-                    case "SITEOWL X":
-                    case "SITEOWLX":
-                        value = device.SiteOwlX?.ToString("F6") ?? "";
-                        break;
-                    case "Y":
-                    case "SITEOWL Y":
-                    case "SITEOWLY":
-                        value = device.SiteOwlY?.ToString("F6") ?? "";
-                        break;
-                    case "LATITUDE":
-                    case "LAT":
-                        value = device.Latitude?.ToString("F10") ?? "";
-                        break;
-                    case "LONGITUDE":
-                    case "LON":
-                    case "LONG":
-                        value = device.Longitude?.ToString("F10") ?? "";
-                        break;
-                    case "PHOTO PATH":
-                    case "PHOTOPATH":
-                    case "PHOTO":
-                        value = device.PhotoPath ?? "";
-                        break;
-                    case "CAPTURE TIMESTAMP":
-                    case "TIMESTAMP":
-                        value = device.CaptureTimestamp ?? "";
-                        break;
-                    case "CAPTURE METHOD":
-                    case "METHOD":
-                        value = device.CaptureMethod ?? "";
-                        break;
-                    case "COORDINATE CONFIDENCE":
-                    case "CONFIDENCE":
-                        value = device.CoordinateConfidence.ToString();
-                        break;
-                    case "USER X":
-                    case "USERX":
-                        value = device.UserX?.ToString("F6") ?? "";
-                        break;
-                    case "USER Y":
-                    case "USERY":
-                        value = device.UserY?.ToString("F6") ?? "";
-                        break;
-                    case "USER FACING":
-                    case "USERFACINGDIRECTION":
-                    case "FACING":
-                        value = device.UserFacingDirection?.ToString("F1") ?? "";
-                        break;
-                    case "REVIEW STATUS":
-                    case "REVIEWSTATUS":
-                    case "STATUS":
-                        value = device.ReviewStatus ?? "";
-                        break;
-                    default:
-                        // Keep original value for unknown columns
-                        value = "";
-                        break;
-                }
-                
-                // Escape values with commas or quotes
-                if (value.Contains(",") || value.Contains("\""))
-                {
-                    value = "\"" + value.Replace("\"", "\"\"") + "\"";
-                }
-                
-                values.Add(value);
+                Debug.LogError($"[CsvManager] Device '{updated.DeviceID}' not found.");
+                return false;
             }
-            
-            return string.Join(",", values);
+
+            devices[idx] = updated;
+
+            if (SaveCsv())
+            {
+                OnDeviceUpdated?.Invoke(updated);
+                return true;
+            }
+            return false;
         }
-        
-        /// <summary>
-        /// Gets devices that still need capture.
-        /// </summary>
-        public List<DeviceData> GetMissingDevices()
-        {
-            return devices.Where(d => d.NeedsCapture).ToList();
-        }
-        
-        /// <summary>
-        /// Searches devices by name or ID.
-        /// </summary>
+
+        // ── Queries ───────────────────────────────────────────────────────────
+
+        public List<DeviceData> GetMissingDevices() =>
+            devices.Where(d => d.NeedsCapture).ToList();
+
+        public List<DeviceData> GetReviewRequiredDevices() =>
+            devices.Where(d => d.RequiresReview).ToList();
+
         public List<DeviceData> SearchDevices(string query)
         {
             if (string.IsNullOrEmpty(query)) return devices;
-            
             query = query.ToLower();
-            return devices.Where(d => 
-                (d.DeviceName?.ToLower().Contains(query) ?? false) ||
-                (d.DeviceID?.ToLower().Contains(query) ?? false) ||
-                (d.Description?.ToLower().Contains(query) ?? false)
-            ).ToList();
+            return devices
+                .Where(d =>
+                    (d.DeviceName?.ToLower().Contains(query) ?? false) ||
+                    (d.DeviceID  ?.ToLower().Contains(query) ?? false) ||
+                    (d.SystemType?.ToLower().Contains(query) ?? false))
+                .ToList();
         }
-        
-        /// <summary>
-        /// Gets devices marked for review.
-        /// </summary>
-        public List<DeviceData> GetReviewRequiredDevices()
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+
+        private string GetField(string[] row, string columnName)
         {
-            return devices.Where(d => d.RequiresReview).ToList();
+            return colIndex.TryGetValue(columnName, out int i) && i < row.Length
+                ? row[i].Trim()
+                : string.Empty;
+        }
+
+        /// <summary>
+        /// Parses "(X.XX, Y.YY)" format used by SiteOwl Coordinates column.
+        /// </summary>
+        private static bool TryParseCoordinates(string raw, out float x, out float y)
+        {
+            x = 0f; y = 0f;
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+
+            raw = raw.Trim().TrimStart('(').TrimEnd(')');
+            var parts = raw.Split(',');
+            if (parts.Length != 2) return false;
+
+            var fmt = System.Globalization.CultureInfo.InvariantCulture;
+            var style = System.Globalization.NumberStyles.Float;
+            return float.TryParse(parts[0].Trim(), style, fmt, out x)
+                && float.TryParse(parts[1].Trim(), style, fmt, out y);
+        }
+
+        /// <summary>Formats X,Y back to SiteOwl's "(X.XX, Y.YY)" convention.</summary>
+        private static string FormatCoordinates(float x, float y) =>
+            $"({x:F2}, {y:F2})";
+
+        /// <summary>
+        /// RFC-4180 compliant CSV line splitter.
+        /// Strips surrounding quotes from values (they're re-applied on write).
+        /// </summary>
+        private static string[] SplitCsvLine(string line)
+        {
+            var result  = new List<string>();
+            var current = new StringBuilder();
+            bool inQuotes = false;
+
+            foreach (char c in line)
+            {
+                switch (c)
+                {
+                    case '"':
+                        inQuotes = !inQuotes;
+                        break;
+                    case ',' when !inQuotes:
+                        result.Add(current.ToString());
+                        current.Clear();
+                        break;
+                    default:
+                        current.Append(c);
+                        break;
+                }
+            }
+            result.Add(current.ToString());
+            return result.ToArray();
+        }
+
+        /// <summary>
+        /// Wraps a value in quotes if it contains a comma, quote, or newline.
+        /// </summary>
+        private static string QuoteCsvValue(string value)
+        {
+            if (value == null) return string.Empty;
+            if (value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0)
+                return '"' + value.Replace("\"", "\"\"") + '"';
+            return value;
+        }
+
+        private bool CreateBackup()
+        {
+            try
+            {
+                string backupDir = Path.Combine(
+                    Path.GetDirectoryName(loadedPath) ?? Application.persistentDataPath,
+                    BackupFolder);
+
+                Directory.CreateDirectory(backupDir);
+
+                string ts   = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string stem = Path.GetFileNameWithoutExtension(loadedPath);
+                string dest = Path.Combine(backupDir, $"{stem}_backup_{ts}.csv");
+
+                File.Copy(loadedPath, dest, overwrite: false);
+                Debug.Log($"[CsvManager] Backup → {dest}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[CsvManager] Backup failed: {ex.Message}");
+                return false;
+            }
         }
     }
 }

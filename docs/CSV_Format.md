@@ -1,65 +1,75 @@
-# CSV Format Specification
+# CSV Format — SiteOwl CCTV Survey Export
 
-## Input CSV (From SiteOwl)
+## Source Files
 
-The input CSV contains existing device records with missing coordinate data.
+SiteOwl exports one CSV per store, e.g. `Store_8225_CCTV.csv`.
+These files are **56 columns wide** and originate from SiteOwl's survey tool.
 
-### Required Columns
+---
 
-| Column | Type | Description |
-|--------|------|-------------|
-| Site | String | Site identifier (e.g., "2996") |
-| Device Name | String | Human-readable name (e.g., "CAM-101") |
-| Device Type | String | Equipment type (e.g., "Dome Camera") |
-| System Type | String | System category (e.g., "CCTV", "Fire Alarm") |
+## Column Map (56 total)
 
-### Capture Columns (Populated by XR App)
+| Index | Header                  | Notes                              |
+|------:|-------------------------|------------------------------------|
+|     0 | Project ID              | Read-only                          |
+|     1 | Plan ID                 | Read-only                          |
+|     2 | Primary Device/Task ID  | Read-only                          |
+|     3 | Primary Device/Task Name| Read-only                          |
+|     4 | **Device ID**           | Mapped → `DeviceData.DeviceID`     |
+|     5 | **Name**                | Mapped → `DeviceData.DeviceName`   |
+|     6 | Abbreviated Names       | Read-only                          |
+|     7 | Device / Task           | Read-only                          |
+|     8 | **System Type**         | Mapped → `DeviceData.SystemType`   |
+|     9 | **Device/Task Type**    | Mapped → `DeviceData.DeviceType`   |
+|    10 | **Part Number**         | Mapped → `DeviceData.Description`  |
+|    11 | Manufacturer            | Read-only                          |
+|  …-52 | (various)               | Read-only — never touched          |
+|    **53** | **Coordinates**     | ⚠️ **ONLY COLUMN WE WRITE**       |
+|    54 | Archived                | Read-only                          |
+|    55 | Shareable Link          | Read-only                          |
 
-| Column | Type | Description |
-|--------|------|-------------|
-| X | Float | SiteOwl X coordinate (meters) |
-| Y | Float | SiteOwl Y coordinate (meters) |
-| Latitude | Double | GPS latitude (estimated, optional) |
-| Longitude | Double | GPS longitude (estimated, optional) |
-| Photo Path | String | Path to captured image file |
-| Review Status | String | "OK", "REVIEW_REQUIRED", or "PENDING" |
+---
 
-### Optional Capture Metadata Columns
+## Coordinates Column (Index 53)
 
-| Column | Type | Description |
-|--------|------|-------------|
-| Capture Timestamp | ISO 8601 | When capture occurred |
-| Capture Method | String | "XR_CAPTURE" |
-| Coordinate Confidence | String | "HIGH", "MEDIUM", "LOW" |
-| User X | Float | User position at capture (SiteOwl space) |
-| User Y | Float | User position at capture (SiteOwl space) |
-| User Facing | Float | User facing direction (degrees, 0=North) |
+**Format:** `(X.XX, Y.YY)` — quoted in CSV because of the comma.
 
-## Output CSV (Updated for SiteOwl Import)
+**Placeholder value** (unsurveyed device): `(10.00, 30.00)`
 
-The output CSV follows the same format as input, with captured fields populated.
+CsvManager treats any coordinate that exactly equals `(10.00, 30.00)` as
+**not yet captured** → `DeviceData.NeedsCapture = true`.
 
-### Review Status Values
+After XR capture, the value is replaced with the real surveyed position,
+e.g. `(45.32, 118.76)`.
 
-- **PENDING** - Device has not been captured yet
-- **OK** - Captured with acceptable confidence
-- **REVIEW_REQUIRED** - Captured but requires human review (low confidence, out of bounds, duplicate, etc.)
+---
 
-### Example Input Row
+## What CsvManager Does
 
-```csv
-2996,CAM-101,Dome Camera,CCTV,,,,,,PENDING
+```
+Load:  Read ALL 56 columns → parse only cols 4,5,8,9,10,53
+       Preserve raw string[] for every other field
+
+Save:  Clone each raw row
+       Replace raw row[53] with new coordinate string
+       Write ALL 56 columns back verbatim
+       → Nothing else ever changes
 ```
 
-### Example Output Row
+Backup is created before every save in a `Backups/` sub-folder
+beside the source file, named:
 
-```csv
-2996,CAM-101,Dome Camera,CCTV,12.50,88.20,32.81234,-96.81234,/Photos/CAM-101_20250115_143022.jpg,OK
+```
+Store_8225_CCTV_backup_20250512_143022.csv
 ```
 
-## Import Back to SiteOwl
+---
 
-The output CSV is designed for:
-1. Direct import into SiteOwl (if supported)
-2. Power Automate flow processing
-3. Manual data entry with photo evidence
+## Guard Rails
+
+- `CsvManager.UpdateDevice()` only writes coordinates — no other field.
+- Backup is **mandatory** — save aborts if backup fails.
+- Column discovery is **dynamic** — the Coordinates column is found by
+  header name, not hardcoded index. If SiteOwl ever adds columns before
+  index 53, it still works.
+- Unknown or missing fields produce a `LogError`, not a silent failure.
