@@ -1,0 +1,18 @@
+# QGIS Project Template for SiteOwl XR Surveyor
+# This is a placeholder - create the actual project in QGIS and save as .qgz
+# 
+# SETUP INSTRUCTIONS:
+# 1. Open QGIS
+# 2. Project → New
+# 3. Project Properties → CRS → Select EPSG:4326 (WGS 84)
+# 4. Install QuickMapServices plugin
+# 5. Web → QuickMapServices → Google → Google Satellite
+# 6. Save as: siteowl_surveyor_template.qgz
+#
+# LAYERS TO ADD:
+# - survey_boundary (polygon - your site area)
+# - devices_captured (points - from your CSV)
+# - calibration_points (points - anchor locations)
+# - photo_locations (points - where photos taken)
+#
+# This template will be loaded for each survey project.
