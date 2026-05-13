@@ -61,6 +61,8 @@ namespace SiteOwlXR.Core
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         // Parallel lists — index N of rawRows matches index N of devices
+        // devices[N] may be null when that row had a column-count mismatch;
+        // the raw row is preserved verbatim so re-saves never drop SiteOwl data.
         private readonly List<string[]>    rawRows = new List<string[]>();
         private readonly List<DeviceData>  devices  = new List<DeviceData>();
 
@@ -138,7 +140,9 @@ namespace SiteOwlXR.Core
                 {
                     Debug.LogWarning(
                         $"[CsvManager] Row {i}: expected {headers.Length} cols, " +
-                        $"got {row.Length}. Skipping.");
+                        $"got {row.Length}. Row preserved verbatim; skipping device parse.");
+                    rawRows.Add(row);
+                    devices.Add(null);  // null sentinel keeps indices aligned
                     continue;
                 }
 
@@ -204,23 +208,31 @@ namespace SiteOwlXR.Core
                 // Header line — preserved exactly
                 lines.Add(string.Join(",", headers.Select(QuoteCsvValue)));
 
-                // Data lines — only col 53 (coordColIndex) may differ
+                string tempPath = loadedPath + ".tmp";
+
+                // Data lines — only coordColIndex may differ; null-device rows are preserved verbatim
                 for (int i = 0; i < rawRows.Count; i++)
                 {
                     var row    = (string[]) rawRows[i].Clone();
-                    var device = devices[i];
+                    var device = devices[i];  // may be null for malformed rows
 
                     // ← THIS IS THE ONLY COLUMN WE EVER TOUCH
-                    if (device.SiteOwlX.HasValue && device.SiteOwlY.HasValue)
+                    if (device != null && device.SiteOwlX.HasValue && device.SiteOwlY.HasValue)
                         row[coordColIndex] = FormatCoordinates(
                             device.SiteOwlX.Value, device.SiteOwlY.Value);
 
                     lines.Add(string.Join(",", row.Select(QuoteCsvValue)));
                 }
 
-                File.WriteAllLines(loadedPath, lines);
+                File.WriteAllLines(tempPath, lines, System.Text.Encoding.UTF8);
 
-                Debug.Log($"[CsvManager] Saved '{Path.GetFileName(loadedPath)}'. " +
+                // Atomic replace — prevents corrupt file on crash mid-write
+                if (File.Exists(loadedPath))
+                    File.Replace(tempPath, loadedPath, null);
+                else
+                    File.Move(tempPath, loadedPath);
+
+                Debug.Log($"[CsvManager] Saved '{Path.GetFileName(loadedPath)}'. " + +
                           $"{CapturedCount}/{TotalCount} coordinates captured.");
                 OnDataSaved?.Invoke();
                 return true;
@@ -257,20 +269,24 @@ namespace SiteOwlXR.Core
         // ── Queries ───────────────────────────────────────────────────────────
 
         public List<DeviceData> GetMissingDevices() =>
-            devices.Where(d => d.NeedsCapture).ToList();
+            devices.Where(d => d != null && d.NeedsCapture).ToList();
 
         public List<DeviceData> GetReviewRequiredDevices() =>
-            devices.Where(d => d.RequiresReview).ToList();
+            devices.Where(d => d != null && d.RequiresReview).ToList();
 
         public List<DeviceData> SearchDevices(string query)
         {
-            if (string.IsNullOrEmpty(query)) return devices;
+            // Always return a copy so the caller iterating the list is safe
+            // even if UpdateDevice() modifies the internal list during iteration.
+            if (string.IsNullOrEmpty(query))
+                return new List<DeviceData>(devices.Where(d => d != null));
+
             query = query.ToLower();
             return devices
-                .Where(d =>
-                    (d.DeviceName?.ToLower().Contains(query) ?? false) ||
-                    (d.DeviceID  ?.ToLower().Contains(query) ?? false) ||
-                    (d.SystemType?.ToLower().Contains(query) ?? false))
+                .Where(d => d != null &&
+                    ((d.DeviceName?.ToLower().Contains(query) ?? false) ||
+                     (d.DeviceID  ?.ToLower().Contains(query) ?? false) ||
+                     (d.SystemType?.ToLower().Contains(query) ?? false)))
                 .ToList();
         }
 
@@ -307,7 +323,7 @@ namespace SiteOwlXR.Core
 
         /// <summary>
         /// RFC-4180 compliant CSV line splitter.
-        /// Strips surrounding quotes from values (they're re-applied on write).
+        /// Handles quoted fields, escaped double-quotes ("""), embedded commas and newlines.
         /// </summary>
         private static string[] SplitCsvLine(string line)
         {
@@ -315,20 +331,34 @@ namespace SiteOwlXR.Core
             var current = new StringBuilder();
             bool inQuotes = false;
 
-            foreach (char c in line)
+            for (int i = 0; i < line.Length; i++)
             {
-                switch (c)
+                char c = line[i];
+                if (inQuotes)
                 {
-                    case '"':
-                        inQuotes = !inQuotes;
-                        break;
-                    case ',' when !inQuotes:
-                        result.Add(current.ToString());
-                        current.Clear();
-                        break;
-                    default:
+                    if (c == '"')
+                    {
+                        // RFC-4180 §2.7: ""  inside a quoted field = escaped literal quote
+                        if (i + 1 < line.Length && line[i + 1] == '"')
+                        {
+                            current.Append('"');
+                            i++;  // consume the second quote
+                        }
+                        else
+                        {
+                            inQuotes = false;  // closing quote
+                        }
+                    }
+                    else
+                    {
                         current.Append(c);
-                        break;
+                    }
+                }
+                else
+                {
+                    if (c == '"')      { inQuotes = true; }
+                    else if (c == ',') { result.Add(current.ToString()); current.Clear(); }
+                    else               { current.Append(c); }
                 }
             }
             result.Add(current.ToString());
@@ -356,18 +386,40 @@ namespace SiteOwlXR.Core
 
                 Directory.CreateDirectory(backupDir);
 
-                string ts   = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                // Millisecond resolution avoids collision on rapid double-captures
+                string ts   = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
                 string stem = Path.GetFileNameWithoutExtension(loadedPath);
                 string dest = Path.Combine(backupDir, $"{stem}_backup_{ts}.csv");
 
+                // Ultra-paranoid: if somehow still collides, add a suffix
+                for (int attempt = 1; File.Exists(dest) && attempt <= 10; attempt++)
+                    dest = Path.Combine(backupDir, $"{stem}_backup_{ts}_{attempt}.csv");
+
                 File.Copy(loadedPath, dest, overwrite: false);
-                Debug.Log($"[CsvManager] Backup → {dest}");
+
+                // Rotate — keep only the 5 most recent backups
+                PruneOldBackups(backupDir, stem, maxKeep: 5);
+
+                Debug.Log($"[CsvManager] Backup -> {Path.GetFileName(dest)}");
                 return true;
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[CsvManager] Backup failed: {ex.Message}");
                 return false;
+            }
+        }
+
+        private static void PruneOldBackups(string backupDir, string stem, int maxKeep)
+        {
+            var backups = Directory.GetFiles(backupDir, $"{stem}_backup_*.csv")
+                .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
+                .ToArray();
+
+            for (int i = maxKeep; i < backups.Length; i++)
+            {
+                try   { File.Delete(backups[i]); }
+                catch { /* best-effort */ }
             }
         }
     }

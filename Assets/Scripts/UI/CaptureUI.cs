@@ -44,21 +44,39 @@ namespace SiteOwlXR.UI
         public TextMeshProUGUI ConfidenceText;
         
         [Header("Colors")]
-        public Color HighConfidenceColor = Color.green;
+        public Color HighConfidenceColor   = Color.green;
         public Color MediumConfidenceColor = Color.yellow;
-        public Color LowConfidenceColor = Color.red;
-        public Color NoConfidenceColor = Color.gray;
-        
-        private CalibrationManager calibration;
-        private CsvManager csvManager;
-        private CaptureController captureController;
-        
+        public Color LowConfidenceColor    = Color.red;
+        public Color NoConfidenceColor     = Color.gray;
+
+        [Header("Dependencies — assign in Inspector")]
+        public CalibrationManager Calibration;
+        public CsvManager         CsvManager;
+        public CaptureController  CaptureController;
+
+        // Cached defaults
+        private Color _defaultStatusColor;
+
+        // Position display throttle (10 Hz is plenty for a label)
+        private float _nextPositionUpdate;
+        private const float PositionUpdateInterval = 0.1f;
+
+        void Awake()
+        {
+            _defaultStatusColor = StatusText != null ? StatusText.color : Color.white;
+        }
+
         void Start()
         {
-            calibration = FindObjectOfType<CalibrationManager>();
-            csvManager = FindObjectOfType<CsvManager>();
-            captureController = FindObjectOfType<CaptureController>();
-            
+            if (Calibration      == null) Debug.LogError("[CaptureUI] CalibrationManager not assigned!");
+            if (CsvManager       == null) Debug.LogError("[CaptureUI] CsvManager not assigned!");
+            if (CaptureController == null) Debug.LogError("[CaptureUI] CaptureController not assigned!");
+
+            // Keep local aliases that match original field names used below
+            calibration       = Calibration;
+            csvManager        = CsvManager;
+            captureController = CaptureController;
+
             SetupEventListeners();
             ShowCalibrationPanel();
         }
@@ -109,14 +127,18 @@ namespace SiteOwlXR.UI
         
         void Update()
         {
-            // Update position display
-            if (calibration != null && calibration.IsCalibrated)
+            if (calibration == null || !calibration.IsCalibrated) return;
+            if (Time.time < _nextPositionUpdate) return;
+            _nextPositionUpdate = Time.time + PositionUpdateInterval;
+
+            Vector2 pos = calibration.GetCurrentSiteOwlPosition();
+            if (PositionText != null)
+                PositionText.text = $"Position: ({pos.x:F2}, {pos.y:F2})";
+
+            var confidence = calibration.CalculateConfidence();
+            if (ConfidenceText != null)
             {
-                Vector2 currentPos = calibration.GetCurrentSiteOwlPosition();
-                PositionText.text = $"Position: ({currentPos.x:F2}, {currentPos.y:F2})";
-                
-                var confidence = calibration.CalculateConfidence();
-                ConfidenceText.text = $"Confidence: {confidence}";
+                ConfidenceText.text  = $"Confidence: {confidence}";
                 ConfidenceText.color = GetConfidenceColor(confidence);
             }
         }
@@ -327,17 +349,9 @@ namespace SiteOwlXR.UI
         
         public void ShowStatus(string message, bool isError)
         {
-            if (StatusText != null)
-            {
-                StatusText.text = message;
-                
-                // Flash effect
-                if (isError)
-                {
-                    StatusText.color = Color.red;
-                }
-            }
-            
+            if (StatusText == null) return;
+            StatusText.text  = message;
+            StatusText.color = isError ? Color.red : _defaultStatusColor;
             Debug.Log($"[CaptureUI] Status: {message}");
         }
         

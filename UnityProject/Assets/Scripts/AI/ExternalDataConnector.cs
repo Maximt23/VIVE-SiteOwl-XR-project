@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -28,7 +29,10 @@ namespace SiteOwlXR.AI
         public int cacheDurationMinutes = 30;
         
         private HttpClient httpClient;
-        private Dictionary<string, CachedResult> cache = new Dictionary<string, CachedResult>();
+        // ConcurrentDictionary is thread-safe for async Task access from multiple threads.
+        // Plain Dictionary<,> is NOT safe for concurrent reads+writes and will corrupt.
+        private readonly ConcurrentDictionary<string, CachedResult> cache =
+            new ConcurrentDictionary<string, CachedResult>(StringComparer.Ordinal);
         
         void Start()
         {

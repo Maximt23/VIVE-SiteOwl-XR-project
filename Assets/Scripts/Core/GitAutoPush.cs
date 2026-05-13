@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace SiteOwlXR.Core
@@ -13,29 +14,37 @@ namespace SiteOwlXR.Core
     {
         [Header("Settings")]
         public bool AutoPushOnCapture = true;
-        public string GitPath = "git";
-        public int PushTimeoutSeconds = 30;
-        
+        public string GitPath         = "git";
+        public int    PushTimeoutSeconds = 30;
+
+        [Header("Dependencies")]
+        [Tooltip("Assign in Inspector — do NOT use FindObjectOfType.")]
+        public CsvManager CsvManager;
+
+        [Header("Repository")]
+        [Tooltip("Absolute path to the git repository root (must contain a .git folder).")]
+        public string RepoPath = @"C:\VIVE-SiteOwl-XR-project";
+
         [Header("Logging")]
         public bool LogToConsole = true;
-        
-        private CsvManager csvManager;
+
         private bool isPushing = false;
-        
-        // Path to the repo (on Android, this might be different)
-        private string repoPath;
-        
+
         void Start()
         {
-            csvManager = FindObjectOfType<CsvManager>();
-            repoPath = Application.persistentDataPath;
-            
-            if (csvManager != null && AutoPushOnCapture)
+            if (CsvManager == null)
             {
-                csvManager.OnDataSaved += OnDataSaved;
+                Debug.LogError("[GitAutoPush] CsvManager not assigned in Inspector!");
+                return;
             }
-            
-            Log("GitAutoPush initialized. Repository path: " + repoPath);
+
+            if (!Directory.Exists(Path.Combine(RepoPath, ".git")))
+                Debug.LogWarning($"[GitAutoPush] No .git folder at '{RepoPath}'. Pushes will fail.");
+
+            if (AutoPushOnCapture)
+                CsvManager.OnDataSaved += OnDataSaved;
+
+            Log("GitAutoPush initialized. Repo: " + RepoPath);
         }
         
         void OnDataSaved()
@@ -66,8 +75,18 @@ namespace SiteOwlXR.Core
             
             try
             {
-                // Stage CSV files
-                var stageResult = await RunGitCommand("add *.csv");
+                // Stage CSV files explicitly — globs don't expand with UseShellExecute=false
+                var csvFiles = Directory.GetFiles(RepoPath, "*.csv", SearchOption.AllDirectories);
+                if (csvFiles.Length == 0)
+                {
+                    Log("No CSV files found to stage.");
+                    isPushing = false;
+                    return false;
+                }
+
+                var relPaths  = csvFiles.Select(f =>
+                    $"\"{Path.GetRelativePath(RepoPath, f).Replace('\\', '/')}\"");
+                var stageResult = await RunGitCommand($"add {string.Join(" ", relPaths)}");
                 if (!stageResult.success)
                 {
                     Log("Failed to stage files: " + stageResult.error);
@@ -116,7 +135,7 @@ namespace SiteOwlXR.Core
                     {
                         FileName = GitPath,
                         Arguments = arguments,
-                        WorkingDirectory = repoPath,
+                        WorkingDirectory = RepoPath,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
@@ -167,10 +186,8 @@ namespace SiteOwlXR.Core
         
         void OnDestroy()
         {
-            if (csvManager != null)
-            {
-                csvManager.OnDataSaved -= OnDataSaved;
-            }
+            if (CsvManager != null)
+                CsvManager.OnDataSaved -= OnDataSaved;
         }
     }
 }

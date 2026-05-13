@@ -2,6 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SiteOwlXR.AI
@@ -56,59 +57,46 @@ namespace SiteOwlXR.AI
         }
         
         /// <summary>
-        /// Analyzes a photo and returns device recognition suggestions.
+        /// Analyzes a photo and raises OnRecognitionComplete with device suggestions.
+        /// Returns a Task so callers can observe exceptions properly.
+        /// Fire-and-forget: _ = AnalyzePhotoAsync(path);
         /// </summary>
-        public async void AnalyzePhoto(string photoPath, string currentDeviceId = "")
+        public async Task AnalyzePhotoAsync(string photoPath, string currentDeviceId = "")
         {
             if (isProcessing)
             {
                 OnRecognitionError?.Invoke("Recognition already in progress");
                 return;
             }
-            
+
             isProcessing = true;
-            
-            Debug.Log($"[DeviceRecognizer] Analyzing photo: {photoPath}");
-            
+            Debug.Log($"[DeviceRecognizer] Analyzing: {photoPath}");
+
             try
             {
-                // Method 1: Try external AI service (TensorFlow, cloud API, etc.)
                 var externalResults = await TryExternalAnalysis(photoPath);
-                
-                // Method 2: Fall back to local keyword-based analysis
+
                 if (externalResults == null || externalResults.Count == 0)
-                {
                     externalResults = await LocalImageAnalysis(photoPath);
-                }
-                
-                // Method 3: Match against existing database
-                var dbMatches = await MatchAgainstDatabase(photoPath, currentDeviceId);
-                
-                // Combine and rank results
-                var combinedResults = CombineResults(externalResults, dbMatches);
-                
-                // Filter by confidence threshold
-                var suggestions = combinedResults
+
+                var dbMatches  = await MatchAgainstDatabase(photoPath, currentDeviceId);
+                var combined   = CombineResults(externalResults, dbMatches);
+                var suggestions = combined
                     .Where(r => r.Confidence >= confidenceThreshold)
                     .Take(maxSuggestions)
                     .ToList();
-                
-                Debug.Log($"[DeviceRecognizer] Found {suggestions.Count} suggestions");
-                foreach (var s in suggestions)
-                {
-                    Debug.Log($"  - {s.SuggestedName}: {s.Confidence:P0} confidence");
-                }
-                
+
+                Debug.Log($"[DeviceRecognizer] {suggestions.Count} suggestion(s)");
                 OnRecognitionComplete?.Invoke(suggestions);
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[DeviceRecognizer] Analysis failed: {ex.Message}");
+                Debug.LogError($"[DeviceRecognizer] Analysis failed: {ex}");
                 OnRecognitionError?.Invoke($"Analysis failed: {ex.Message}");
             }
             finally
             {
-                isProcessing = false;
+                isProcessing = false;  // always released, even on exception
             }
         }
         
@@ -129,90 +117,82 @@ namespace SiteOwlXR.AI
         }
         
         /// <summary>
-        /// Local keyword-based analysis (fallback when no ML available)
-        /// Uses EXIF data, filename, and basic image properties
+        /// Local color-based analysis.
+        /// Pixel sampling is done on the main-thread synchronization context to avoid
+        /// UnityException (Unity APIs are main-thread only).
         /// </summary>
         private async Task<List<RecognitionResult>> LocalImageAnalysis(string photoPath)
         {
             var results = new List<RecognitionResult>();
-            
+
+            // Capture main-thread context before any await
+            var mainThread = SynchronizationContext.Current;
+
             try
             {
-                // Load image
-                byte[] imageBytes = System.IO.File.ReadAllBytes(photoPath);
-                Texture2D texture = new Texture2D(2, 2);
-                texture.LoadImage(imageBytes);
-                
-                // Basic image analysis
-                Color32[] pixels = texture.GetPixels32();
-                int totalPixels = pixels.Length;
-                
-                // Calculate dominant colors
-                int redPixels = 0, whitePixels = 0, blackPixels = 0, greyPixels = 0;
-                
-                foreach (var pixel in pixels)
+                // Read raw bytes on any thread — no Unity API involved
+                byte[] imageBytes = await Task.Run(() => System.IO.File.ReadAllBytes(photoPath));
+
+                // Color analysis MUST happen on the main thread (Texture2D is UI-thread-only)
+                float redRatio = 0f, whiteRatio = 0f, blackRatio = 0f;
+
+                var tcs = new TaskCompletionSource<bool>();
+                mainThread.Post(_ =>
                 {
-                    if (pixel.r > 200 && pixel.g < 100 && pixel.b < 100)
-                        redPixels++;
-                    else if (pixel.r > 200 && pixel.g > 200 && pixel.b > 200)
-                        whitePixels++;
-                    else if (pixel.r < 50 && pixel.g < 50 && pixel.b < 50)
-                        blackPixels++;
-                    else if (Math.Abs(pixel.r - pixel.g) < 20 && Math.Abs(pixel.g - pixel.b) < 20)
-                        greyPixels++;
-                }
-                
-                // Score categories based on colors
-                float redRatio = (float)redPixels / totalPixels;
-                float whiteRatio = (float)whitePixels / totalPixels;
-                float blackRatio = (float)blackPixels / totalPixels;
-                float greyRatio = (float)greyPixels / totalPixels;
-                
-                // Match against categories
+                    try
+                    {
+                        var texture = new Texture2D(2, 2);
+                        texture.LoadImage(imageBytes);
+
+                        Color32[] pixels     = texture.GetPixels32();
+                        int       total      = pixels.Length;
+                        int red = 0, white = 0, black = 0;
+
+                        foreach (var p in pixels)
+                        {
+                            if (p.r > 200 && p.g < 100 && p.b < 100) red++;
+                            else if (p.r > 200 && p.g > 200 && p.b > 200) white++;
+                            else if (p.r < 50  && p.g < 50  && p.b < 50)  black++;
+                        }
+
+                        redRatio   = (float)red   / total;
+                        whiteRatio = (float)white / total;
+                        blackRatio = (float)black / total;
+
+                        UnityEngine.Object.Destroy(texture);
+                        tcs.TrySetResult(true);
+                    }
+                    catch (Exception ex) { tcs.TrySetException(ex); }
+                }, null);
+
+                await tcs.Task;
+
+                // Score categories based on dominant colors
                 foreach (var category in knownCategories)
                 {
                     float score = 0f;
-                    
-                    // Color-based scoring
-                    if (category.keywords.Contains("red") && redRatio > 0.1f)
-                        score += 0.3f;
-                    if (category.keywords.Contains("white") && whiteRatio > 0.3f)
-                        score += 0.2f;
-                    if (category.keywords.Contains("black") && blackRatio > 0.2f)
-                        score += 0.2f;
-                    
-                    // Filename matching
-                    string filename = System.IO.Path.GetFileNameWithoutExtension(photoPath).ToLower();
-                    foreach (var keyword in category.keywords)
-                    {
-                        if (filename.Contains(keyword.ToLower()))
-                        {
-                            score += 0.4f;
-                            break;
-                        }
-                    }
-                    
+                    if (category.keywords.Contains("red")   && redRatio   > 0.1f) score += 0.3f;
+                    if (category.keywords.Contains("white")  && whiteRatio > 0.3f) score += 0.2f;
+                    if (category.keywords.Contains("black")  && blackRatio > 0.2f) score += 0.2f;
+
                     if (score > 0.2f)
                     {
                         results.Add(new RecognitionResult
                         {
-                            SuggestedName = category.type,
+                            SuggestedName       = category.type,
                             SuggestedSystemType = category.systemType,
-                            Confidence = Mathf.Clamp01(score),
-                            RecognitionMethod = "Color+Filename Analysis",
-                            Reasoning = $"Red:{redRatio:P0}, White:{whiteRatio:P0}, Filename match"
+                            Confidence          = Mathf.Clamp01(score),
+                            RecognitionMethod   = "Color Analysis",
+                            Reasoning           = $"Red:{redRatio:P0} White:{whiteRatio:P0} Black:{blackRatio:P0}"
                         });
                     }
                 }
-                
-                Destroy(texture);
             }
             catch (Exception ex)
             {
                 Debug.LogWarning($"[DeviceRecognizer] Local analysis failed: {ex.Message}");
             }
-            
-            await Task.Delay(50);
+
             return results.OrderByDescending(r => r.Confidence).ToList();
         }
         

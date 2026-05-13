@@ -197,14 +197,20 @@ namespace SiteOwlXR.Core
         private string SaveTexture(Texture2D texture, string deviceId)
         {
             EnsureDirectoryExists();
-            
-            // Create device folder
-            string safeDeviceId = SanitizeFileName(deviceId);
-            string deviceFolder = Path.Combine(photosPath, safeDeviceId);
-            if (!Directory.Exists(deviceFolder))
+
+            string safeDeviceId  = SanitizeFileName(deviceId);
+            string deviceFolder  = Path.GetFullPath(Path.Combine(photosPath, safeDeviceId));
+
+            // Path traversal guard — reject anything that escapes photosPath
+            if (!deviceFolder.StartsWith(Path.GetFullPath(photosPath), StringComparison.OrdinalIgnoreCase))
             {
-                Directory.CreateDirectory(deviceFolder);
+                Debug.LogError($"[PhotoCapture] Path traversal blocked for deviceId: {deviceId}");
+                OnCaptureError?.Invoke("Invalid device ID — path traversal blocked");
+                return null;
             }
+
+            if (!Directory.Exists(deviceFolder))
+                Directory.CreateDirectory(deviceFolder);
             
             // Generate filename with timestamp
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -231,13 +237,17 @@ namespace SiteOwlXR.Core
         private string SanitizeFileName(string name)
         {
             if (string.IsNullOrEmpty(name)) return "unknown";
-            
+
             foreach (char c in Path.GetInvalidFileNameChars())
-            {
                 name = name.Replace(c, '_');
-            }
-            
-            return name.Replace(" ", "_").ToLower();
+
+            // Dots allow path traversal via ".." — replace them too
+            name = name.Replace(".", "_").Replace(" ", "_").ToLower();
+
+            if (string.IsNullOrWhiteSpace(name) || name.Trim('_').Length == 0)
+                name = "unknown";
+
+            return name;
         }
         
         /// <summary>

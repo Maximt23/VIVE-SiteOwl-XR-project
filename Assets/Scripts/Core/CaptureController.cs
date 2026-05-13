@@ -30,23 +30,30 @@ namespace SiteOwlXR.Core
         private DeviceData currentDevice;
         private bool isCapturing = false;
         
+        [Header("Timing")]
+        [Tooltip("Seconds to wait for photo before aborting capture.")]
+        public float PhotoTimeoutSeconds = 15f;
+
         void Start()
         {
             if (CameraTransform == null)
                 CameraTransform = Camera.main?.transform;
-            
+
             if (Calibration == null)
                 Debug.LogError("[CaptureController] CalibrationManager not assigned!");
             if (CsvManager == null)
                 Debug.LogError("[CaptureController] CsvManager not assigned!");
             if (PhotoCapture == null)
                 Debug.LogError("[CaptureController] PhotoCapture not assigned!");
-            
+
             // Subscribe to events
             if (PhotoCapture != null)
             {
-                PhotoCapture.OnPhotoSaved += OnPhotoSaved;
+                PhotoCapture.OnPhotoSaved   += OnPhotoSaved;
                 PhotoCapture.OnCaptureError += OnPhotoCaptureError;
+
+                // Initialize the camera system so TakePhoto uses the real camera, not screenshot
+                PhotoCapture.Initialize();
             }
         }
         
@@ -168,8 +175,18 @@ namespace SiteOwlXR.Core
                 photoComplete = true;
             });
             
-            // Wait for photo
-            yield return new WaitUntil(() => photoComplete);
+            // Wait for photo — hard deadline prevents infinite hang on camera failure
+            float deadline = Time.time + PhotoTimeoutSeconds;
+            yield return new WaitUntil(() => photoComplete || Time.time > deadline);
+
+            if (!photoComplete)
+            {
+                Debug.LogError("[CaptureController] Photo capture timed out.");
+                OnCaptureError?.Invoke("Photo capture timed out");
+                isCapturing = false;
+                CaptureUI?.ShowCapturingState(false);
+                yield break;
+            }
             
             if (string.IsNullOrEmpty(photoPath))
             {
@@ -286,11 +303,25 @@ namespace SiteOwlXR.Core
             }
         }
         
+        /// <summary>
+        /// Called by AiCopilotUI after the user accepts or skips an AI suggestion.
+        /// Resumes the capture → CSV write step.
+        /// </summary>
+        public void ProceedWithCapture()
+        {
+            if (currentDevice == null)
+            {
+                OnCaptureError?.Invoke("No device selected");
+                return;
+            }
+            CaptureCurrentDevice();
+        }
+
         void OnDestroy()
         {
             if (PhotoCapture != null)
             {
-                PhotoCapture.OnPhotoSaved -= OnPhotoSaved;
+                PhotoCapture.OnPhotoSaved   -= OnPhotoSaved;
                 PhotoCapture.OnCaptureError -= OnPhotoCaptureError;
             }
         }

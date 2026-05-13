@@ -23,8 +23,10 @@ namespace SiteOwlXR.UI
         public Color CapturedColor = new Color(0.9f, 1f, 0.9f);
         public Color ReviewRequiredColor = new Color(1f, 0.95f, 0.8f);
         
-        private DeviceData device;
-        private Action<DeviceData> onSelectCallback;
+        // Store only the ID. The live DeviceData is resolved at interaction time
+        // via the CsvManager so we never hold a stale reference after CSV reload.
+        private string deviceId;
+        private Action<string> onSelectCallback;
         
         void OnEnable()
         {
@@ -42,64 +44,46 @@ namespace SiteOwlXR.UI
             }
         }
         
-        /// <summary>
-        /// Sets up the list item with device data.
-        /// </summary>
         public void Setup(DeviceData deviceData, Action<DeviceData> onSelect)
         {
-            device = deviceData;
-            onSelectCallback = onSelect;
-            
-            if (DeviceNameText != null)
-            {
-                DeviceNameText.text = device.DeviceName;
-            }
-            
-            if (DeviceTypeText != null)
-            {
-                DeviceTypeText.text = $"{device.DeviceType} | {device.SystemType}";
-            }
-            
+            deviceId         = deviceData.DeviceID;
+            // Wrap so callers still get DeviceData; the DeviceData ref at setup time
+            // is fine for display — we only re-resolve at button click.
+            onSelectCallback = id => onSelect?.Invoke(deviceData);
+
+            if (DeviceNameText != null) DeviceNameText.text = deviceData.DeviceName;
+            if (DeviceTypeText  != null) DeviceTypeText.text  = $"{deviceData.DeviceType} | {deviceData.SystemType}";
+
             if (StatusText != null)
             {
-                if (device.NeedsCapture)
+                if (deviceData.NeedsCapture)
                 {
-                    StatusText.text = "<color=red>NEEDS CAPTURE</color>";
+                    StatusText.text  = "NEEDS CAPTURE";
                     StatusText.color = Color.red;
                 }
-                else if (device.RequiresReview)
+                else if (deviceData.RequiresReview)
                 {
-                    StatusText.text = "<color=yellow>REVIEW REQUIRED</color>";
+                    StatusText.text  = "REVIEW REQUIRED";
                     StatusText.color = new Color(1f, 0.7f, 0f);
                 }
                 else
                 {
-                    StatusText.text = $"<color=green>✓</color> ({device.CoordinateConfidence})";
+                    StatusText.text  = $"OK ({deviceData.CoordinateConfidence})";
                     StatusText.color = Color.green;
                 }
             }
-            
-            // Set background color
+
             if (BackgroundImage != null)
             {
-                if (device.RequiresReview)
-                {
-                    BackgroundImage.color = ReviewRequiredColor;
-                }
-                else if (device.NeedsCapture)
-                {
-                    BackgroundImage.color = NeedsCaptureColor;
-                }
-                else
-                {
-                    BackgroundImage.color = CapturedColor;
-                }
+                BackgroundImage.color = deviceData.RequiresReview ? ReviewRequiredColor
+                                      : deviceData.NeedsCapture   ? NeedsCaptureColor
+                                      : CapturedColor;
             }
         }
         
         void OnSelectClicked()
         {
-            onSelectCallback?.Invoke(device);
+            onSelectCallback?.Invoke(deviceId);
         }
     }
 }

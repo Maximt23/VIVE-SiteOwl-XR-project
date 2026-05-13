@@ -1,22 +1,43 @@
 """
 build_device_library.py
 Scrapes every Store_*_CCTV.csv and builds a structured device recognition
-library: Data/device_recognition_library.json
+library: <out-dir>/device_recognition_library.json
+
+Usage:
+  python build_device_library.py
+  python build_device_library.py --csv-dir "D:\\Store Data" --out-dir "C:\\output"
+
+Defaults come from environment variables SITEOWL_CSV_DIR / SITEOWL_OUT_DIR,
+then fall back to the hardcoded paths below.
 """
 
+import argparse
 import csv
 import json
 import os
 import sys
 from collections import defaultdict
 
-CSV_DIR  = (
+_DEFAULT_CSV_DIR = (
     r"C:\Users\vn59j7j\OneDrive - Walmart Inc"
     r"\Master Excel Pathing\CCTV STORES DATA - Survey"
 )
-# ── Output now lives in the shared Designs folder ─────────────────────────────
-OUT_DIR  = r"C:\VIVE-SiteOwl-XR-Designs\Meta data\data"
-OUT_FILE = os.path.join(OUT_DIR, "device_recognition_library.json")
+_DEFAULT_OUT_DIR = r"C:\VIVE-SiteOwl-XR-Designs\Meta data\data"
+
+
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Build SiteOwl device recognition library.")
+    p.add_argument(
+        "--csv-dir",
+        default=os.environ.get("SITEOWL_CSV_DIR", _DEFAULT_CSV_DIR),
+        help="Directory containing Store_*_CCTV.csv files",
+    )
+    p.add_argument(
+        "--out-dir",
+        default=os.environ.get("SITEOWL_OUT_DIR", _DEFAULT_OUT_DIR),
+        help="Directory to write device_recognition_library.json",
+    )
+    return p.parse_args()
 
 # Prefix → human-readable location zone
 ZONE_MAP = {
@@ -45,6 +66,16 @@ def zone_for(name):
 
 
 def main():
+    args     = _parse_args()
+    CSV_DIR  = args.csv_dir
+    OUT_DIR  = args.out_dir
+    OUT_FILE = os.path.join(OUT_DIR, "device_recognition_library.json")
+
+    if not os.path.isdir(CSV_DIR):
+        sys.stderr.write(f"[ERROR] CSV directory not found: {CSV_DIR}\n")
+        sys.stderr.write("  Set --csv-dir or SITEOWL_CSV_DIR env var.\n")
+        sys.exit(1)
+
     os.makedirs(OUT_DIR, exist_ok=True)
 
     # name → aggregated data across all stores
