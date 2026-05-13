@@ -1,0 +1,8 @@
+# StreamingAssets Folder
+
+This folder is for runtime data files:
+- CSV files
+- Configuration
+- Templates
+
+Files here are copied as-is to the build.
