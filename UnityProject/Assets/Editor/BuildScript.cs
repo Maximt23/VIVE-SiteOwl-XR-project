@@ -1,52 +1,64 @@
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
+using System.IO;
 
 /// <summary>
-/// Build script for command-line and automated builds.
+/// Build script for command-line and automated builds via BUILD.bat.
+/// Called with: -executeMethod BuildScript.BuildAndroid
 /// </summary>
 public class BuildScript
 {
+    private static readonly string[] Scenes =
+    {
+        "Assets/Scenes/MainScene.unity"
+    };
+
+    private static string OutputDir => Path.GetFullPath(
+        Path.Combine(Application.dataPath, "..", "..", "Builds"));
+
     [MenuItem("Build/Build Android APK")]
     public static void BuildAndroid()
     {
-        // Setup build options
-        BuildPlayerOptions buildOptions = new BuildPlayerOptions
+        string apkPath = Path.Combine(OutputDir, "SiteOwl_XR_Capture.apk");
+        Directory.CreateDirectory(OutputDir);
+
+        var opts = new BuildPlayerOptions
         {
-            scenes = new[] { "Assets/Scenes/XR_Test.unity" },
-            locationPathName = "../Builds/SiteOwl_XR_Capture.apk",
-            target = BuildTarget.Android,
-            options = BuildOptions.None
+            scenes           = Scenes,
+            locationPathName = apkPath,
+            target           = BuildTarget.Android,
+            options          = BuildOptions.None,
         };
-        
-        // Build
-        Debug.Log("Starting Android build...");
-        BuildReport report = BuildPipeline.BuildPlayer(buildOptions);
-        BuildSummary summary = report.summary;
-        
-        // Check result
+
+        Debug.Log($"[BuildScript] Building Android APK -> {apkPath}");
+        var report  = BuildPipeline.BuildPlayer(opts);
+        var summary = report.summary;
+
         if (summary.result == BuildResult.Succeeded)
         {
-            Debug.Log($"Build succeeded! Time: {summary.totalTime}, Size: {summary.totalSize} bytes");
+            Debug.Log($"[BuildScript] SUCCESS  {summary.outputPath}  " +
+                      $"({summary.totalSize / 1_048_576f:F1} MB  {summary.totalTime.TotalSeconds:F0}s)");
         }
-        else if (summary.result == BuildResult.Failed)
+        else
         {
-            Debug.LogError("Build failed!");
+            Debug.LogError($"[BuildScript] FAILED ({summary.totalErrors} error(s))");
             EditorApplication.Exit(1);
         }
     }
-    
+
     [MenuItem("Build/Build and Run Android")]
     public static void BuildAndRunAndroid()
     {
-        BuildPlayerOptions buildOptions = new BuildPlayerOptions
+        string apkPath = Path.Combine(OutputDir, "SiteOwl_XR_Capture.apk");
+        Directory.CreateDirectory(OutputDir);
+
+        BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
-            scenes = new[] { "Assets/Scenes/XR_Test.unity" },
-            locationPathName = "../Builds/SiteOwl_XR_Capture.apk",
-            target = BuildTarget.Android,
-            options = BuildOptions.AutoRunPlayer
-        };
-        
-        Debug.Log("Building and running on device...");
-        BuildPipeline.BuildPlayer(buildOptions);
+            scenes           = Scenes,
+            locationPathName = apkPath,
+            target           = BuildTarget.Android,
+            options          = BuildOptions.AutoRunPlayer,
+        });
     }
 }

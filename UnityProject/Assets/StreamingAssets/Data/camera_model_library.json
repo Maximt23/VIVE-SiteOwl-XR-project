@@ -1,0 +1,1049 @@
+{
+  "meta": {
+    "version": "1.1.0",
+    "description": "Walmart CCTV Camera Model Recognition Library — seed data for XR AI recognition",
+    "generated_by": "build_device_library.py + manual curation",
+    "last_updated": "",
+    "total_models": 42,
+    "notes": "local_images populated by fetch_camera_images.py"
+  },
+
+  "form_factors": {
+    "dome":        { "shape": "hemispherical",         "mounts": ["ceiling"],           "typical_colors": ["white", "black"] },
+    "bullet":      { "shape": "cylindrical/tube",      "mounts": ["wall", "ceiling"],   "typical_colors": ["white", "black", "gray"] },
+    "ptz":         { "shape": "dome with pan-tilt",    "mounts": ["ceiling", "pole"],   "typical_colors": ["white", "black"] },
+    "box":         { "shape": "rectangular",           "mounts": ["wall", "ceiling"],   "typical_colors": ["black", "gray"] },
+    "fisheye":     { "shape": "flat round",            "mounts": ["ceiling"],           "typical_colors": ["white", "black"] },
+    "multisensor": { "shape": "large multi-head dome", "mounts": ["ceiling", "pole"],   "typical_colors": ["white", "black"] },
+    "turret":      { "shape": "ball on base",          "mounts": ["ceiling", "wall"],   "typical_colors": ["white", "black"] }
+  },
+
+  "manufacturers": {
+    "Axis":       { "country": "Sweden",  "website": "https://www.axis.com",         "logo_keywords": ["axis", "AXIS"] },
+    "Hanwha":     { "country": "South Korea", "website": "https://www.hanwhavision.com", "logo_keywords": ["hanwha", "samsung wisenet"] },
+    "Hikvision":  { "country": "China",   "website": "https://www.hikvision.com",    "logo_keywords": ["hikvision", "HIKVISION"] },
+    "Dahua":      { "country": "China",   "website": "https://www.dahuasecurity.com","logo_keywords": ["dahua", "DAHUA"] },
+    "Bosch":      { "country": "Germany", "website": "https://www.boschsecurity.com","logo_keywords": ["bosch", "BOSCH"] },
+    "Pelco":      { "country": "USA",     "website": "https://www.pelco.com",        "logo_keywords": ["pelco", "PELCO"] },
+    "Avigilon":   { "country": "Canada",  "website": "https://www.avigilon.com",     "logo_keywords": ["avigilon", "AVIGILON"] },
+    "Verkada":    { "country": "USA",     "website": "https://www.verkada.com",      "logo_keywords": ["verkada"] },
+    "Genetec":    { "country": "Canada",  "website": "https://www.genetec.com",      "logo_keywords": ["genetec"] }
+  },
+
+  "models": [
+
+    {
+      "id": "axis_p3245_v",
+      "manufacturer": "Axis",
+      "model_name": "P3245-V",
+      "series": "P32",
+      "form_factor": "dome",
+      "part_numbers": ["01048-001", "01048-031"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact hemispherical dome",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "2MP 1080p", "connection": "IP", "poe": true, "indoor_outdoor": "indoor" },
+      "keywords": ["p3245", "p3245-v", "axis dome", "fixed dome", "p32 series"],
+      "typical_zones": ["Sales Floor", "Point of Sale / Checkout", "Entrance", "Office"],
+      "recognition_hint": "White compact hemisphere dome, recessed lens, ceiling mount, Axis logo ring on cover.",
+      "search_queries": ["Axis P3245-V dome camera", "Axis P3245-V security camera product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_p3245_ve",
+      "manufacturer": "Axis",
+      "model_name": "P3245-VE",
+      "series": "P32",
+      "form_factor": "dome",
+      "part_numbers": ["01049-001"],
+      "visual": {
+        "color": ["white"],
+        "shape": "weatherproof hemispherical dome",
+        "housing": "metal+plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2MP 1080p", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP66" },
+      "keywords": ["p3245-ve", "axis outdoor dome", "p32 outdoor"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Exit"],
+      "recognition_hint": "White dome with metal pendant/wall mount, smoked bubble, Axis logo.",
+      "search_queries": ["Axis P3245-VE outdoor dome camera", "Axis P3245-VE product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_p3255_v",
+      "manufacturer": "Axis",
+      "model_name": "P3255-V",
+      "series": "P32",
+      "form_factor": "dome",
+      "part_numbers": ["02099-001"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact dome, slightly larger than P3245",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "5MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor" },
+      "keywords": ["p3255", "p3255-v", "axis 5mp dome"],
+      "typical_zones": ["Sales Floor", "Point of Sale / Checkout"],
+      "recognition_hint": "Almost identical to P3245-V but slightly wider body due to 5MP sensor. White, ceiling mount.",
+      "search_queries": ["Axis P3255-V dome camera", "Axis P3255-V 5MP dome"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_q6135_le",
+      "manufacturer": "Axis",
+      "model_name": "Q6135-LE",
+      "series": "Q61",
+      "form_factor": "ptz",
+      "part_numbers": ["01960-001"],
+      "visual": {
+        "color": ["white"],
+        "shape": "large motorized dome housing",
+        "housing": "metal",
+        "size_category": "large",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2MP", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP66", "optical_zoom": "32x" },
+      "keywords": ["q6135", "axis ptz", "motorized dome", "pan tilt zoom", "q61"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Fuel Station"],
+      "recognition_hint": "Large white dome on pendant, motorized housing visible, smoked bubble, Axis logo.",
+      "search_queries": ["Axis Q6135-LE PTZ camera", "Axis Q6135 outdoor PTZ product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_m3106_l",
+      "manufacturer": "Axis",
+      "model_name": "M3106-L Mk II",
+      "series": "M31",
+      "form_factor": "dome",
+      "part_numbers": ["01711-001"],
+      "visual": {
+        "color": ["white"],
+        "shape": "mini dome, very compact",
+        "housing": "plastic",
+        "size_category": "mini",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor" },
+      "keywords": ["m3106", "axis mini dome", "m31", "mk ii"],
+      "typical_zones": ["Office", "Point of Sale / Checkout", "Stockroom / Backroom"],
+      "recognition_hint": "Very small white dome, flush ceiling mount, tiny smoked bubble.",
+      "search_queries": ["Axis M3106-L Mk II mini dome camera", "Axis M3106 product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_p1448_le",
+      "manufacturer": "Axis",
+      "model_name": "P1448-LE",
+      "series": "P14",
+      "form_factor": "multisensor",
+      "part_numbers": ["01634-001"],
+      "visual": {
+        "color": ["black"],
+        "shape": "elongated rectangular bar with 4 lenses",
+        "housing": "metal",
+        "size_category": "large",
+        "ir_leds": true,
+        "dome_tint": "N/A"
+      },
+      "specs": { "resolution": "32MP (8x4MP)", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP66" },
+      "keywords": ["p1448", "axis multisensor", "panoramic", "multi-lens", "180 degree"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Fuel Station"],
+      "recognition_hint": "Long black bar with 4 separate camera heads, wall/ceiling mount. Unmistakeable wide-angle setup.",
+      "search_queries": ["Axis P1448-LE multisensor camera", "Axis P1448 panoramic camera product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_q3536_lve",
+      "manufacturer": "Axis",
+      "model_name": "Q3536-LVE",
+      "series": "Q35",
+      "form_factor": "dome",
+      "part_numbers": ["02062-001"],
+      "visual": {
+        "color": ["white"],
+        "shape": "low-profile outdoor dome",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IK10" },
+      "keywords": ["q3536", "axis outdoor dome", "vandal resistant", "q35"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Exit"],
+      "recognition_hint": "Medium white outdoor dome with metal vandal-resistant housing, smoked bubble.",
+      "search_queries": ["Axis Q3536-LVE outdoor dome camera", "Axis Q3536 product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hanwha_qnv_8080r",
+      "manufacturer": "Hanwha",
+      "model_name": "QNV-8080R",
+      "series": "Q Series",
+      "form_factor": "dome",
+      "part_numbers": ["QNV-8080R"],
+      "visual": {
+        "color": ["white"],
+        "shape": "flattened dome / vandal-proof",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "5MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor/outdoor", "ip_rating": "IP66 IK10" },
+      "keywords": ["qnv-8080r", "hanwha dome", "samsung wisenet", "q series dome"],
+      "typical_zones": ["Sales Floor", "Entrance", "Point of Sale / Checkout"],
+      "recognition_hint": "Flat low-profile dome, white with smoked bubble, Hanwha Wisenet logo, metal body.",
+      "search_queries": ["Hanwha QNV-8080R dome camera", "Hanwha Wisenet QNV-8080R product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hanwha_qnd_8080r",
+      "manufacturer": "Hanwha",
+      "model_name": "QND-8080R",
+      "series": "Q Series",
+      "form_factor": "dome",
+      "part_numbers": ["QND-8080R"],
+      "visual": {
+        "color": ["white"],
+        "shape": "classic indoor dome",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "5MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor" },
+      "keywords": ["qnd-8080r", "hanwha indoor dome", "wisenet indoor"],
+      "typical_zones": ["Office", "Stockroom / Backroom", "Point of Sale / Checkout"],
+      "recognition_hint": "Standard indoor dome, white plastic body, smoked bubble, Wisenet label underneath.",
+      "search_queries": ["Hanwha QND-8080R indoor dome camera", "QND-8080R Wisenet product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hanwha_xnv_8080r",
+      "manufacturer": "Hanwha",
+      "model_name": "XNV-8080R",
+      "series": "X Series",
+      "form_factor": "dome",
+      "part_numbers": ["XNV-8080R"],
+      "visual": {
+        "color": ["white"],
+        "shape": "outdoor vandal dome",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "5MP", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP66 IK10" },
+      "keywords": ["xnv-8080r", "hanwha outdoor dome", "wisenet x"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Exit"],
+      "recognition_hint": "Similar to QNV but part of X Series — slightly heavier metal housing for harsh environments.",
+      "search_queries": ["Hanwha XNV-8080R outdoor dome camera", "Wisenet XNV-8080R product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hanwha_pnm_9000vq",
+      "manufacturer": "Hanwha",
+      "model_name": "PNM-9000VQ",
+      "series": "P Series",
+      "form_factor": "multisensor",
+      "part_numbers": ["PNM-9000VQ"],
+      "visual": {
+        "color": ["white"],
+        "shape": "4-directional multi-sensor dome",
+        "housing": "metal",
+        "size_category": "large",
+        "ir_leds": false,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "4x2MP = 8MP total", "connection": "IP", "poe": false, "indoor_outdoor": "indoor/outdoor" },
+      "keywords": ["pnm-9000vq", "hanwha multisensor", "360 camera", "4 sensor"],
+      "typical_zones": ["Sales Floor", "Exterior / Parking"],
+      "recognition_hint": "Large dome housing with 4 separate directional lenses visible through smoked cover.",
+      "search_queries": ["Hanwha PNM-9000VQ multisensor camera", "Wisenet PNM-9000VQ product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hik_ds2cd2143g2_i",
+      "manufacturer": "Hikvision",
+      "model_name": "DS-2CD2143G2-I",
+      "series": "AcuSense",
+      "form_factor": "dome",
+      "part_numbers": ["DS-2CD2143G2-I"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact dome",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor" },
+      "keywords": ["ds-2cd2143", "hikvision dome", "acusense", "2cd2143"],
+      "typical_zones": ["Sales Floor", "Office", "Stockroom / Backroom"],
+      "recognition_hint": "White compact dome, smoked bubble, Hikvision label, very common model.",
+      "search_queries": ["Hikvision DS-2CD2143G2-I dome camera", "Hikvision AcuSense 4MP dome product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hik_ds2cd2347g2_lu",
+      "manufacturer": "Hikvision",
+      "model_name": "DS-2CD2347G2-LU",
+      "series": "ColorVu",
+      "form_factor": "dome",
+      "part_numbers": ["DS-2CD2347G2-LU"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact dome with color LEDs visible",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": false,
+        "has_white_leds": true,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor/outdoor", "color_night_vision": true },
+      "keywords": ["ds-2cd2347", "hikvision colorvu", "color night vision", "2cd2347"],
+      "typical_zones": ["Sales Floor", "Point of Sale / Checkout", "Entrance"],
+      "recognition_hint": "White dome, CLEAR (not smoked) bubble so you can see the sensor. Small white LED strips for full-color night vision.",
+      "search_queries": ["Hikvision DS-2CD2347G2-LU ColorVu dome", "Hikvision ColorVu 4MP dome product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hik_ds2de4425iwg_e",
+      "manufacturer": "Hikvision",
+      "model_name": "DS-2DE4425IWG-E",
+      "series": "Pro PTZ",
+      "form_factor": "ptz",
+      "part_numbers": ["DS-2DE4425IWG-E"],
+      "visual": {
+        "color": ["white"],
+        "shape": "pendant motorized dome",
+        "housing": "metal",
+        "size_category": "large",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP66", "optical_zoom": "25x" },
+      "keywords": ["ds-2de4425", "hikvision ptz", "motorized", "pan tilt zoom"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Fuel Station"],
+      "recognition_hint": "Large white PTZ on pendant, rotating dome housing visible, smoked bubble.",
+      "search_queries": ["Hikvision DS-2DE4425IWG-E PTZ camera", "Hikvision Pro PTZ dome product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hik_ds2cd2t47g2_l",
+      "manufacturer": "Hikvision",
+      "model_name": "DS-2CD2T47G2-L",
+      "series": "ColorVu",
+      "form_factor": "bullet",
+      "part_numbers": ["DS-2CD2T47G2-L"],
+      "visual": {
+        "color": ["black"],
+        "shape": "cylindrical bullet",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": false,
+        "has_white_leds": true,
+        "dome_tint": "N/A"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP67", "color_night_vision": true },
+      "keywords": ["ds-2cd2t47", "hikvision bullet", "colorvu bullet", "outdoor bullet"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Exit"],
+      "recognition_hint": "Black cylindrical bullet camera, wall/ceiling mount, white LED strips at front for color night vision.",
+      "search_queries": ["Hikvision DS-2CD2T47G2-L ColorVu bullet camera", "Hikvision bullet outdoor product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "dahua_ipc_hdw2831t_as",
+      "manufacturer": "Dahua",
+      "model_name": "IPC-HDW2831T-AS",
+      "series": "Lite Series",
+      "form_factor": "dome",
+      "part_numbers": ["IPC-HDW2831T-AS"],
+      "visual": {
+        "color": ["white"],
+        "shape": "eyeball/turret dome",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "8MP 4K", "connection": "IP", "poe": true, "indoor_outdoor": "indoor/outdoor", "ip_rating": "IP67" },
+      "keywords": ["ipc-hdw2831", "dahua eyeball", "dahua turret", "dahua dome"],
+      "typical_zones": ["Sales Floor", "Office", "Entrance"],
+      "recognition_hint": "Small white eyeball/turret camera — ball sensor unit rotates independently of the base mount.",
+      "search_queries": ["Dahua IPC-HDW2831T-AS eyeball camera", "Dahua HDW2831 turret product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "dahua_sd49425xb_hnr",
+      "manufacturer": "Dahua",
+      "model_name": "SD49425XB-HNR",
+      "series": "AI PTZ",
+      "form_factor": "ptz",
+      "part_numbers": ["SD49425XB-HNR"],
+      "visual": {
+        "color": ["white"],
+        "shape": "pendant PTZ dome",
+        "housing": "metal",
+        "size_category": "large",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP66", "optical_zoom": "25x" },
+      "keywords": ["sd49425", "dahua ptz", "motorized ptz", "ai ptz"],
+      "typical_zones": ["Exterior / Parking", "Fuel Station", "Entrance"],
+      "recognition_hint": "White PTZ, large rotating dome, Dahua logo on housing.",
+      "search_queries": ["Dahua SD49425XB-HNR PTZ camera", "Dahua AI PTZ dome product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "dahua_ipc_hfw2849s_s_il",
+      "manufacturer": "Dahua",
+      "model_name": "IPC-HFW2849S-S-IL",
+      "series": "Smart Dual Light",
+      "form_factor": "bullet",
+      "part_numbers": ["IPC-HFW2849S-S-IL"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact bullet/fixed camera",
+        "housing": "metal",
+        "size_category": "compact",
+        "ir_leds": true,
+        "has_white_leds": true,
+        "dome_tint": "N/A"
+      },
+      "specs": { "resolution": "8MP 4K", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP67" },
+      "keywords": ["ipc-hfw2849", "dahua bullet", "dual light", "smart light"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Exit"],
+      "recognition_hint": "Compact white/gray bullet, dual light strips (IR + white LED), fixed lens.",
+      "search_queries": ["Dahua IPC-HFW2849S-S-IL bullet camera", "Dahua smart dual light bullet product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "bosch_flexidome_5100i",
+      "manufacturer": "Bosch",
+      "model_name": "FLEXIDOME 5100i",
+      "series": "FLEXIDOME",
+      "form_factor": "dome",
+      "part_numbers": ["NIN-51022-A3", "NIN-51022-A3S"],
+      "visual": {
+        "color": ["white"],
+        "shape": "small flush-mount dome",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor/outdoor", "ai_onboard": true },
+      "keywords": ["flexidome", "bosch dome", "5100i", "bosch ip dome", "nin-51022"],
+      "typical_zones": ["Sales Floor", "Office", "Entrance"],
+      "recognition_hint": "Clean Bosch white dome, minimal design, Bosch shield logo on side.",
+      "search_queries": ["Bosch FLEXIDOME 5100i dome camera", "Bosch NIN-51022 product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "bosch_mic_ip_7000i",
+      "manufacturer": "Bosch",
+      "model_name": "MIC IP Starlight 7000i",
+      "series": "MIC",
+      "form_factor": "ptz",
+      "part_numbers": ["MIC-7522-Z30B"],
+      "visual": {
+        "color": ["black"],
+        "shape": "large rugged PTZ dome",
+        "housing": "metal",
+        "size_category": "extra-large",
+        "ir_leds": false,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "2MP", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP68", "optical_zoom": "30x" },
+      "keywords": ["mic ip", "bosch ptz", "mic 7000i", "starlight ptz"],
+      "typical_zones": ["Exterior / Parking", "Fuel Station"],
+      "recognition_hint": "Very large rugged black PTZ, extremely durable housing, Bosch logo. Often on tall poles in parking lots.",
+      "search_queries": ["Bosch MIC IP Starlight 7000i PTZ camera", "Bosch MIC-7522 product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "bosch_flexidome_7100i",
+      "manufacturer": "Bosch",
+      "model_name": "FLEXIDOME 7100i IR",
+      "series": "FLEXIDOME",
+      "form_factor": "dome",
+      "part_numbers": ["NIN-71022-A10"],
+      "visual": {
+        "color": ["white"],
+        "shape": "indoor dome, slightly larger than 5100i",
+        "housing": "plastic",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor", "ai_onboard": true },
+      "keywords": ["flexidome 7100i", "bosch 7100", "nin-71022"],
+      "typical_zones": ["Sales Floor", "Office"],
+      "recognition_hint": "White dome, wider housing than 5100i, Bosch logo, smoked bubble.",
+      "search_queries": ["Bosch FLEXIDOME 7100i dome camera", "Bosch NIN-71022 product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "pelco_spectra_enhanced",
+      "manufacturer": "Pelco",
+      "model_name": "Spectra Enhanced SE10",
+      "series": "Spectra",
+      "form_factor": "ptz",
+      "part_numbers": ["SE10-C10-0"],
+      "visual": {
+        "color": ["white"],
+        "shape": "classic round PTZ dome",
+        "housing": "metal",
+        "size_category": "large",
+        "ir_leds": false,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "1080p", "connection": "IP", "poe": false, "indoor_outdoor": "indoor/outdoor", "optical_zoom": "10x" },
+      "keywords": ["spectra", "pelco ptz", "spectra se10", "pelco dome"],
+      "typical_zones": ["Exterior / Parking", "Sales Floor", "Entrance"],
+      "recognition_hint": "Classic rounded white PTZ, PELCO text on housing, smoked bubble, pendant or ceiling mount.",
+      "search_queries": ["Pelco Spectra Enhanced SE10 PTZ camera", "Pelco Spectra PTZ dome product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "pelco_sarix_ime",
+      "manufacturer": "Pelco",
+      "model_name": "Sarix IME Series",
+      "series": "Sarix",
+      "form_factor": "dome",
+      "part_numbers": ["IME119-1EP", "IME219-1EP"],
+      "visual": {
+        "color": ["white"],
+        "shape": "indoor dome",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": false,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "1-3MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor" },
+      "keywords": ["sarix", "pelco dome", "ime119", "ime219", "sarix indoor"],
+      "typical_zones": ["Office", "Sales Floor", "Stockroom / Backroom"],
+      "recognition_hint": "White dome with Pelco branding, smoked bubble, standard ceiling mount.",
+      "search_queries": ["Pelco Sarix IME dome camera", "Pelco IME119 product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "avigilon_h5a_do",
+      "manufacturer": "Avigilon",
+      "model_name": "H5A Dome",
+      "series": "H5A",
+      "form_factor": "dome",
+      "part_numbers": ["2.0-H5A-DO1", "5.0-H5A-DO1"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact dome, clean industrial design",
+        "housing": "metal+plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2-5MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor/outdoor", "ip_rating": "IP66 IK10", "ai_onboard": true },
+      "keywords": ["h5a", "avigilon dome", "h5a-do", "avigilon indoor dome"],
+      "typical_zones": ["Sales Floor", "Point of Sale / Checkout", "Entrance"],
+      "recognition_hint": "Avigilon H5A dome — distinctive Avigilon slot/vent design on the housing. White, smoked bubble.",
+      "search_queries": ["Avigilon H5A dome camera", "Avigilon H5A-DO1 product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "avigilon_h5a_bo",
+      "manufacturer": "Avigilon",
+      "model_name": "H5A Bullet",
+      "series": "H5A",
+      "form_factor": "bullet",
+      "part_numbers": ["2.0-H5A-BO1", "5.0-H5A-BO1"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact bullet, clean design",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "N/A"
+      },
+      "specs": { "resolution": "2-5MP", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP66" },
+      "keywords": ["h5a bullet", "avigilon bullet", "h5a-bo", "avigilon outdoor"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Exit"],
+      "recognition_hint": "White/gray cylindrical bullet camera, Avigilon branding, clean modern lines.",
+      "search_queries": ["Avigilon H5A bullet camera", "Avigilon H5A-BO product image outdoor camera"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "avigilon_h5a_ptz",
+      "manufacturer": "Avigilon",
+      "model_name": "H5A PTZ",
+      "series": "H5A",
+      "form_factor": "ptz",
+      "part_numbers": ["2.0-H5A-PTZ-DC12"],
+      "visual": {
+        "color": ["white"],
+        "shape": "motorized dome PTZ",
+        "housing": "metal",
+        "size_category": "large",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2MP", "connection": "IP", "poe": false, "indoor_outdoor": "indoor/outdoor", "optical_zoom": "12x" },
+      "keywords": ["h5a ptz", "avigilon ptz", "h5a-ptz"],
+      "typical_zones": ["Exterior / Parking", "Sales Floor"],
+      "recognition_hint": "White PTZ dome, Avigilon branding, pendant mount.",
+      "search_queries": ["Avigilon H5A PTZ camera", "Avigilon PTZ dome product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "verkada_cd62",
+      "manufacturer": "Verkada",
+      "model_name": "CD62",
+      "series": "D Series",
+      "form_factor": "dome",
+      "part_numbers": ["CD62"],
+      "visual": {
+        "color": ["white"],
+        "shape": "ultra-compact flush dome",
+        "housing": "plastic",
+        "size_category": "mini",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "5MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor", "cloud_managed": true },
+      "keywords": ["cd62", "verkada dome", "verkada indoor", "cloud camera"],
+      "typical_zones": ["Office", "Stockroom / Backroom", "Point of Sale / Checkout"],
+      "recognition_hint": "Very small flush dome, minimalist all-white design, Verkada logo, cloud-managed.",
+      "search_queries": ["Verkada CD62 dome camera", "Verkada D Series dome product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "verkada_cb62",
+      "manufacturer": "Verkada",
+      "model_name": "CB62",
+      "series": "B Series",
+      "form_factor": "bullet",
+      "part_numbers": ["CB62"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact weatherproof bullet",
+        "housing": "metal",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "N/A"
+      },
+      "specs": { "resolution": "5MP", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP66", "cloud_managed": true },
+      "keywords": ["cb62", "verkada bullet", "verkada outdoor", "b series"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Exit"],
+      "recognition_hint": "White compact bullet, very clean modern design, Verkada branding, cloud-managed.",
+      "search_queries": ["Verkada CB62 bullet camera", "Verkada B Series outdoor bullet product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "verkada_cp62",
+      "manufacturer": "Verkada",
+      "model_name": "CP62",
+      "series": "P Series",
+      "form_factor": "ptz",
+      "part_numbers": ["CP62-E"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact PTZ dome",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "4K", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP66", "optical_zoom": "32x", "cloud_managed": true },
+      "keywords": ["cp62", "verkada ptz", "p series ptz"],
+      "typical_zones": ["Exterior / Parking", "Entrance"],
+      "recognition_hint": "White compact PTZ, clean Verkada design language, smoked bubble.",
+      "search_queries": ["Verkada CP62 PTZ camera", "Verkada P Series PTZ product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_p3374_v",
+      "manufacturer": "Axis",
+      "model_name": "P3374-V",
+      "series": "P33",
+      "form_factor": "dome",
+      "part_numbers": ["02055-001"],
+      "visual": {
+        "color": ["white"],
+        "shape": "standard mid-size dome",
+        "housing": "plastic",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "1MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor" },
+      "keywords": ["p3374", "axis p33", "p3374-v"],
+      "typical_zones": ["Sales Floor", "Office"],
+      "recognition_hint": "White mid-range dome, Axis logo ring, smoked bubble, standard ceiling mount.",
+      "search_queries": ["Axis P3374-V dome camera", "Axis P3374 product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_q6000_e",
+      "manufacturer": "Axis",
+      "model_name": "Q6000-E Mk II",
+      "series": "Q60",
+      "form_factor": "multisensor",
+      "part_numbers": ["0961-001"],
+      "visual": {
+        "color": ["black"],
+        "shape": "hemispheric 360-degree camera",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "4x2MP = 8MP total", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP66" },
+      "keywords": ["q6000", "axis hemispheric", "360 camera", "panoramic axis"],
+      "typical_zones": ["Exterior / Parking", "Entrance"],
+      "recognition_hint": "Black flat-top camera with four directional lenses in a cross pattern, outdoor rated.",
+      "search_queries": ["Axis Q6000-E Mk II outdoor 360 camera", "Axis Q6000 hemispheric product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hik_ds2cd2345g0p_i",
+      "manufacturer": "Hikvision",
+      "model_name": "DS-2CD2345G0P-I",
+      "series": "Panoramic",
+      "form_factor": "fisheye",
+      "part_numbers": ["DS-2CD2345G0P-I"],
+      "visual": {
+        "color": ["white"],
+        "shape": "flat round fisheye, ultra-wide 180-degree lens",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": true, "indoor_outdoor": "indoor/outdoor", "fov": "180°" },
+      "keywords": ["ds-2cd2345g0p", "hikvision fisheye", "panoramic dome", "180 degree"],
+      "typical_zones": ["Sales Floor", "Entrance"],
+      "recognition_hint": "Looks like a very flat dome — the clear dome is almost flush with the body. Huge round lens visible.",
+      "search_queries": ["Hikvision DS-2CD2345G0P-I fisheye camera", "Hikvision panoramic 180 dome product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "dahua_ipc_ebw81242",
+      "manufacturer": "Dahua",
+      "model_name": "IPC-EBW81242",
+      "series": "WizMind",
+      "form_factor": "fisheye",
+      "part_numbers": ["IPC-EBW81242"],
+      "visual": {
+        "color": ["white"],
+        "shape": "flat fisheye dome",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": false,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "12MP", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP67", "fov": "360°" },
+      "keywords": ["ipc-ebw81242", "dahua fisheye", "360 dahua", "wizmind panoramic"],
+      "typical_zones": ["Sales Floor", "Parking", "Entrance"],
+      "recognition_hint": "Wide flat white camera body with a large protruding fisheye lens in the center.",
+      "search_queries": ["Dahua IPC-EBW81242 fisheye camera", "Dahua WizMind 360 fisheye product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "bosch_autodome_7000i",
+      "manufacturer": "Bosch",
+      "model_name": "AUTODOME IP 7000i",
+      "series": "AUTODOME",
+      "form_factor": "ptz",
+      "part_numbers": ["NDP-7512-Z30"],
+      "visual": {
+        "color": ["white"],
+        "shape": "large pendant PTZ dome",
+        "housing": "metal",
+        "size_category": "large",
+        "ir_leds": false,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2MP", "connection": "IP", "poe": false, "indoor_outdoor": "indoor/outdoor", "optical_zoom": "30x" },
+      "keywords": ["autodome", "bosch ptz", "ndp-7512", "autodome 7000i"],
+      "typical_zones": ["Exterior / Parking", "Sales Floor", "Entrance"],
+      "recognition_hint": "Large white pendant PTZ, distinctive Bosch AUTODOME branding, smoked bubble.",
+      "search_queries": ["Bosch AUTODOME IP 7000i PTZ camera", "Bosch NDP-7512 product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_f4105_dome",
+      "manufacturer": "Axis",
+      "model_name": "F4105-LRE Dome Sensor",
+      "series": "F Series",
+      "form_factor": "dome",
+      "part_numbers": ["02262-001"],
+      "visual": {
+        "color": ["white"],
+        "shape": "modular sensor unit, very small",
+        "housing": "plastic",
+        "size_category": "mini",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "1080p", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP66" },
+      "keywords": ["f4105", "axis f series", "modular sensor", "pinhole style"],
+      "typical_zones": ["Point of Sale / Checkout", "Office", "ATM"],
+      "recognition_hint": "Very tiny sensor unit, typically used in covert or tight-space setups. Much smaller than standard dome.",
+      "search_queries": ["Axis F4105-LRE dome sensor camera", "Axis F series modular sensor product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hanwha_qno_8080r",
+      "manufacturer": "Hanwha",
+      "model_name": "QNO-8080R",
+      "series": "Q Series",
+      "form_factor": "bullet",
+      "part_numbers": ["QNO-8080R"],
+      "visual": {
+        "color": ["white"],
+        "shape": "outdoor bullet",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "N/A"
+      },
+      "specs": { "resolution": "5MP", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP66 IK10" },
+      "keywords": ["qno-8080r", "hanwha bullet", "wisenet bullet", "outdoor bullet"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Exit"],
+      "recognition_hint": "White metal bullet, Wisenet branding on top, IR LEDs in ring around lens.",
+      "search_queries": ["Hanwha QNO-8080R bullet camera", "Wisenet QNO-8080R outdoor bullet product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "avigilon_h5a_4k_do",
+      "manufacturer": "Avigilon",
+      "model_name": "H5A 4K Outdoor Dome",
+      "series": "H5A",
+      "form_factor": "dome",
+      "part_numbers": ["8.0-H5A-DO1"],
+      "visual": {
+        "color": ["white"],
+        "shape": "outdoor vandal dome",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "8MP 4K", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP66 IK10", "ai_onboard": true },
+      "keywords": ["h5a 4k", "avigilon outdoor", "8mp dome", "h5a outdoor"],
+      "typical_zones": ["Exterior / Parking", "Entrance"],
+      "recognition_hint": "Identical styling to H5A indoor dome but larger and metal-bodied, Avigilon vent pattern.",
+      "search_queries": ["Avigilon H5A 4K outdoor dome camera", "Avigilon 8.0-H5A-DO1 product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "pelco_optera",
+      "manufacturer": "Pelco",
+      "model_name": "Optera IMM12018",
+      "series": "Optera",
+      "form_factor": "multisensor",
+      "part_numbers": ["IMM12018-1EI"],
+      "visual": {
+        "color": ["white"],
+        "shape": "4-sensor 180-degree panoramic",
+        "housing": "metal+plastic",
+        "size_category": "large",
+        "ir_leds": false,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "4x3MP = 12MP total", "connection": "IP", "poe": false, "indoor_outdoor": "indoor/outdoor", "fov": "180°" },
+      "keywords": ["optera", "pelco panoramic", "imm12018", "pelco multisensor"],
+      "typical_zones": ["Exterior / Parking", "Entrance", "Sales Floor"],
+      "recognition_hint": "Wide bar with 4 stacked sensors, 180-degree panoramic view. PELCO text on housing.",
+      "search_queries": ["Pelco Optera IMM12018 panoramic camera", "Pelco Optera multisensor product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "axis_p5655_e",
+      "manufacturer": "Axis",
+      "model_name": "P5655-E PTZ",
+      "series": "P56",
+      "form_factor": "ptz",
+      "part_numbers": ["01556-001"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact outdoor PTZ",
+        "housing": "metal",
+        "size_category": "medium",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2MP", "connection": "IP", "poe": false, "indoor_outdoor": "outdoor", "ip_rating": "IP66", "optical_zoom": "32x" },
+      "keywords": ["p5655", "axis ptz outdoor", "p56 ptz"],
+      "typical_zones": ["Exterior / Parking", "Fuel Station"],
+      "recognition_hint": "Medium-size white outdoor PTZ dome, clean Axis design, smoked bubble.",
+      "search_queries": ["Axis P5655-E PTZ camera outdoor", "Axis P5655 product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hik_ds2cd2143g2_is",
+      "manufacturer": "Hikvision",
+      "model_name": "DS-2CD2143G2-IS",
+      "series": "AcuSense",
+      "form_factor": "dome",
+      "part_numbers": ["DS-2CD2143G2-IS"],
+      "visual": {
+        "color": ["white"],
+        "shape": "compact outdoor dome",
+        "housing": "metal+plastic",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "4MP", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP67", "has_mic": true },
+      "keywords": ["ds-2cd2143g2-is", "hikvision outdoor dome", "acusense outdoor", "audio dome"],
+      "typical_zones": ["Entrance", "Exit", "Exterior / Parking"],
+      "recognition_hint": "White dome with metal base ring for outdoor mounting, Hikvision logo, smoked bubble, has mic hole.",
+      "search_queries": ["Hikvision DS-2CD2143G2-IS outdoor dome", "Hikvision AcuSense outdoor dome product photo"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "hanwha_qnv_6085r",
+      "manufacturer": "Hanwha",
+      "model_name": "QNV-6085R",
+      "series": "Q Series",
+      "form_factor": "dome",
+      "part_numbers": ["QNV-6085R"],
+      "visual": {
+        "color": ["white"],
+        "shape": "outdoor vandal dome, lower profile",
+        "housing": "metal",
+        "size_category": "compact",
+        "ir_leds": true,
+        "dome_tint": "smoked"
+      },
+      "specs": { "resolution": "2MP", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP66 IK10" },
+      "keywords": ["qnv-6085r", "hanwha 2mp dome", "wisenet outdoor dome"],
+      "typical_zones": ["Entrance", "Exit", "Exterior / Parking"],
+      "recognition_hint": "Smaller than the 8080R, same Wisenet dome design language, white metal.",
+      "search_queries": ["Hanwha QNV-6085R dome camera", "Wisenet QNV-6085R product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    },
+
+    {
+      "id": "dahua_ipc_hdw3849h_as_pv",
+      "manufacturer": "Dahua",
+      "model_name": "IPC-HDW3849H-AS-PV",
+      "series": "Full-color Active Deterrence",
+      "form_factor": "dome",
+      "part_numbers": ["IPC-HDW3849H-AS-PV"],
+      "visual": {
+        "color": ["white"],
+        "shape": "eyeball/turret with color light strips",
+        "housing": "plastic",
+        "size_category": "compact",
+        "ir_leds": false,
+        "has_white_leds": true,
+        "has_red_blue_leds": true,
+        "dome_tint": "clear"
+      },
+      "specs": { "resolution": "8MP 4K", "connection": "IP", "poe": true, "indoor_outdoor": "outdoor", "ip_rating": "IP67", "active_deterrence": true },
+      "keywords": ["hdw3849h-as-pv", "dahua active deterrence", "full-color eyeball", "warning light camera"],
+      "typical_zones": ["Exterior / Parking", "Entrance"],
+      "recognition_hint": "Eyeball-style turret with very visible red+blue or white LED warning strips. Designed to be seen as a deterrent.",
+      "search_queries": ["Dahua IPC-HDW3849H-AS-PV active deterrence camera", "Dahua full-color deterrence eyeball product image"],
+      "local_images": [],
+      "image_fetch_done": false
+    }
+
+  ]
+}
