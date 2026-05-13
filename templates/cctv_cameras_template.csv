@@ -1,0 +1,11 @@
+Site,CameraID,CameraType,MountType,HousingType,Manufacturer,Model,IP_Address,VMS_Zone,Description,X,Y,Latitude,Longitude,PhotoPath,GPSAccuracy,ReviewStatus
+2996,CAM-001,Dome Camera,Ceiling Mount,Indoor,Axis,P3245-LV,192.168.1.101,Front_Entrance,Main entrance dome camera,,,,,,,PENDING
+2996,CAM-002,Bullet Camera,Wall Mount,Outdoor,Hikvision,DS-2CD2T85G1-I5,192.168.1.102,Parking_North,North parking lot view,,,,,,,PENDING
+2996,CAM-003,PTZ Camera,Pole Mount,Outdoor,Axis,Q6155-E,192.168.1.103,Loading_Dock,Loading dock PTZ with zoom,,,,,,,PENDING
+2996,CAM-004,Turret Camera,Wall Mount,Outdoor,Dahua,IPC-HDW5841T-ZE,192.168.1.104,Warehouse_East,East warehouse exterior,,,,,,,PENDING
+2996,CAM-005,Fisheye Camera,Ceiling Mount,Indoor,Axis,M3057-PLVE,192.168.1.105,Reception,Reception area 360 view,,,,,,,PENDING
+2996,CAM-006,Panoramic Camera,Wall Mount,Outdoor,Avigilon,H4 Multisensor,192.168.1.106,Main_Floor,Wide area coverage,,,,,,,PENDING
+2996,CAM-007,Thermal Camera,Parapet Mount,Outdoor,FLIR,PT-Series,192.168.1.107,Perimeter_North,North perimeter thermal,,,,,,,PENDING
+2996,CAM-008,Dome Camera,Ceiling Mount,Indoor,Hanwha,XND-8081VZ,192.168.1.108,Office_Area,Office corridor view,,,,,,,PENDING
+2996,CAM-009,Bullet Camera,Pole Mount,Outdoor,Axis,P1448-LE,192.168.1.109,Parking_South,South parking lot view,,,,,,,PENDING
+2996,CAM-010,Turret Camera,Wall Mount,Indoor,Reolink,RLC-822A,192.168.1.110,Storage_Room,Storage area monitoring,,,,,,,PENDING
