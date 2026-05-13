@@ -1,0 +1,6 @@
+ID,Name,Type,System Type,Description,X,Y,Latitude,Longitude,Photo Path,Capture Timestamp,Capture Method,Coordinate Confidence,User X,User Y,User Facing,Review Status
+DEV001,Entrance Camera,Camera,Security,Main entrance surveillance,,,,,,,,,,,,
+DEV002,Loading Dock Fire Suppression,Sprinkler,Fire Safety,Loading dock sprinkler head,,,,,,,,,,,,
+DEV003,Office Access Control,Card Reader,Access Control,Front office entry reader,,,,,,,,,,,,
+DEV004,Server Room Temp Sensor,Environmental,HVAC,Server room temperature monitor,,,,,,,,,,,,
+DEV005,Emergency Exit Sign,Lighting,Emergency,Building exit illumination,,,,,,,,,,,,
