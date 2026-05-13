@@ -5,26 +5,30 @@ using System.IO;
 namespace SiteOwlXR.Photos
 {
     /// <summary>
-    /// Captures photos using VIVE headset camera.
-    /// TODO: Implement photo capture workflow
+    /// Captures photos using VIVE headset camera and saves them to the
+    /// shared output folder: C:\VIVE-SiteOwl-XR-Designs\Meta data\Photos
     /// </summary>
     public class PhotoCapture : MonoBehaviour
     {
         [Header("Settings")]
-        public string photosFolder = "Photos";
-        public int photoWidth = 1920;
+        // Override in Inspector if the path ever changes — do NOT hardcode elsewhere.
+        public string photosOutputPath = @"C:\VIVE-SiteOwl-XR-Designs\Meta data\Photos";
+        public int photoWidth  = 1920;
         public int photoHeight = 1080;
         
         [Header("Events")]
         public UnityEngine.Events.UnityEvent<string> OnPhotoCaptured;
         public UnityEngine.Events.UnityEvent<string> OnPhotoError;
         
-        private string photosPath;
-        private bool isCapturing = false;
+        private string photosPath = string.Empty;
+        private bool isCapturing  = false;
         
         void Start()
         {
-            photosPath = Path.Combine(Application.persistentDataPath, photosFolder);
+            // Use the configured output path; fall back to persistentDataPath if blank.
+            photosPath = string.IsNullOrWhiteSpace(photosOutputPath)
+                ? Path.Combine(Application.persistentDataPath, "Photos")
+                : photosOutputPath;
             EnsureDirectoryExists();
         }
         
