@@ -1,0 +1,11 @@
+Site,Device Name,Device Type,System Type,Description,Barcode,X,Y,IP Address,VMS Zone,Manufacturer,Model,Serial Number,Photo URL,Photo Path,Capture Timestamp,Capture Method,GPS Accuracy,Review Status
+2996,CAM-001,Dome Camera,CCTV,Main entrance dome camera,,,,192.168.1.101,Front_Entrance,Axis,P3245-LV,SN001,,,,,,PENDING
+2996,CAM-002,Bullet Camera,CCTV,North parking lot view,,,,192.168.1.102,Parking_North,Hikvision,DS-2CD2T85G1-I5,SN002,,,,,,PENDING
+2996,CAM-003,PTZ Camera,CCTV,Loading dock PTZ with zoom,,,,192.168.1.103,Loading_Dock,Axis,Q6155-E,SN003,,,,,,PENDING
+2996,CAM-004,Turret Camera,CCTV,East warehouse exterior,,,,192.168.1.104,Warehouse_East,Dahua,IPC-HDW5841T-ZE,SN004,,,,,,PENDING
+2996,CAM-005,Fisheye Camera,CCTV,Reception area 360 view,,,,192.168.1.105,Reception,Axis,M3057-PLVE,SN005,,,,,,PENDING
+2996,CAM-006,Panoramic Camera,CCTV,Wide area coverage,,,,192.168.1.106,Main_Floor,Avigilon,H4 Multisensor,SN006,,,,,,PENDING
+2996,CAM-007,Thermal Camera,CCTV,North perimeter thermal,,,,192.168.1.107,Perimeter_North,FLIR,PT-Series,SN007,,,,,,PENDING
+2996,CAM-008,Dome Camera,CCTV,Office corridor view,,,,192.168.1.108,Office_Area,Hanwha,XND-8081VZ,SN008,,,,,,PENDING
+2996,CAM-009,Bullet Camera,CCTV,South parking lot view,,,,192.168.1.109,Parking_South,Axis,P1448-LE,SN009,,,,,,PENDING
+2996,CAM-010,Turret Camera,CCTV,Storage area monitoring,,,,192.168.1.110,Storage_Room,Reolink,RLC-822A,SN010,,,,,,PENDING
