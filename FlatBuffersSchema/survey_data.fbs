@@ -1,0 +1,180 @@
+// CCTV Survey Data Schema for FlatBuffers
+// Compile with: flatc --csharp survey_data.fbs
+
+namespace CCTVSurvey;
+
+// GPS coordinates with accuracy
+struct GPSCoordinates {
+  latitude:double;
+  longitude:double;
+  accuracy:float;      // Horizontal accuracy in meters
+  altitude:double;     // Optional altitude
+}
+
+// SiteOwl local coordinates
+struct SiteOwlCoordinates {
+  x:float;
+  y:float;
+  z:float;  // Optional height
+}
+
+// Photo metadata (actual photo stored externally)
+table PhotoMetadata {
+  local_path:string;     // Path on device
+  external_url:string;   // SharePoint/Azure/etc URL
+  file_hash:[ubyte];     // SHA-256 hash for integrity (32 bytes)
+  file_size:int;         // Size in bytes
+  width:int;             // Image dimensions
+  height:int;
+  timestamp:string;      // ISO 8601
+}
+
+// AI recognition results
+table AIRecognition {
+  suggested_type:string;     // Dome, Bullet, PTZ, etc.
+  confidence:float;          // 0.0 to 1.0
+  recognition_method:string; // Visual, Database, etc.
+  reasoning:string;          // Human-readable explanation
+  alternative_suggestions:[string];
+}
+
+// MemoryBear: Spatial relationship to other cameras
+table SpatialRelationship {
+  related_camera_id:string;
+  distance_meters:float;
+  direction_degrees:float;   // 0 = North
+  relationship_type:string;  // "adjacent", "opposite", "near" etc.
+}
+
+// MemoryBear: Surveyor observation/notes
+table SurveyorObservation {
+  timestamp:string;
+  category:string;       // "access_difficulty", "lighting", "notes"
+  content:string;
+  priority:int;        // 1-5, 5 = important
+}
+
+// MemoryBear: Environmental context
+table EnvironmentalContext {
+  indoor:bool;
+  lighting:string;       // "bright", "dim", "dark"
+  weather:string;        // If outdoor: "sunny", "rain", "fog"
+  temperature:float;   // Optional
+  gps_signal_strength:int; // 0-100
+}
+
+// Main camera capture record
+table CameraCapture {
+  // Identification (from collaborator data - PRESERVED)
+  camera_id:string;
+  device_name:string;
+  device_type:string;       // Dome, Bullet, PTZ, etc.
+  system_type:string;       // Usually "CCTV"
+  description:string;
+  
+  // Network info (from collaborator - PRESERVED)
+  ip_address:string;
+  vms_zone:string;
+  manufacturer:string;
+  model:string;
+  serial_number:string;
+  
+  // GPS Data (what we CAPTURE)
+  gps:GPSCoordinates;
+  siteowl_coords:SiteOwlCoordinates;
+  
+  // Photo (what we CAPTURE)
+  photo:PhotoMetadata;
+  
+  // Capture metadata (what we CAPTURE)
+  capture_timestamp:string;     // ISO 8601 UTC
+  capture_method:string;        // "XR_CAPTURE" or "XR_CAPTURE+AI_CONFIRMED"
+  surveyor_id:string;
+  
+  // AI (what we SUGGEST, user confirms)
+  ai_recognition:AIRecognition;
+  
+  // MemoryBear: Context and relationships
+  spatial_relationships:[SpatialRelationship];
+  environmental_context:EnvironmentalContext;
+  surveyor_observations:[SurveyorObservation];
+  
+  // Quality/review
+  review_status:string;      // "OK", "REVIEW_REQUIRED", "PENDING"
+  quality_score:float;       // Overall quality 0-1
+}
+
+// Site context from MemoryBear
+table SiteContext {
+  site_id:string;
+  site_name:string;
+  site_address:string;
+  
+  // MemoryBear learned patterns
+  typical_camera_types:[string];      // ["Dome:45%", "Bullet:30%", "PTZ:25%"]
+  typical_mounting:[string];          // ["Ceiling:60%", "Wall:40%"]
+  known_manufacturers:[string];       // ["Axis:50%", "Hikvision:30%"]
+  
+  // Spatial patterns
+  camera_density_zones:[string];      // JSON: {"reception": 5, "parking": 2}
+  coverage_gaps:[string];             // Known areas needing cameras
+  
+  // Surveyor knowledge
+  common_issues:[SurveyorObservation];
+  access_notes:string;                // "Loading dock needs ladder"
+  
+  // Historical
+  previous_survey_count:int;
+  last_survey_date:string;
+  average_gps_accuracy:float;
+}
+
+// Complete survey session
+table SurveySession {
+  session_id:string;           // UUID
+  site_id:string;
+  site_context:SiteContext;
+  
+  // Survey metadata
+  surveyor_id:string;
+  surveyor_name:string;
+  start_time:string;           // ISO 8601
+  end_time:string;
+  
+  // Progress
+  total_cameras_expected:int;
+  cameras_captured:[CameraCapture];
+  cameras_remaining:[string];  // IDs not yet captured
+  
+  // Sync status
+  last_sync_timestamp:string;
+  sync_status:string;          // "local_only", "synced", "conflict"
+  
+  // MemoryBear session memory
+  session_notes:string;
+  pattern_discoveries:[string]; // AI-discovered patterns during survey
+}
+
+// Binary sync packet (for headset ↔ server sync)
+table SyncPacket {
+  packet_id:string;
+  timestamp:string;
+  device_id:string;            // Headset/device ID
+  
+  // Data
+  session_updates:[CameraCapture];  // New/updated captures
+  deleted_cameras:[string];           // IDs to remove
+  
+  // MemoryBear sync
+  context_updates:SiteContext;        // Updated site knowledge
+  new_observations:[SurveyorObservation];
+  
+  // Sync metadata
+  server_timestamp:string;
+  conflicts:[string];                 // IDs with conflicts
+}
+
+// Root types
+root_type SurveySession;
+root_type CameraCapture;
+root_type SyncPacket;
