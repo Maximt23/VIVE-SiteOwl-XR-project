@@ -1,0 +1,13 @@
+Site,Device Name,Device Type,System Type,X,Y,Latitude,Longitude,Photo Path,Review Status
+2996,CAM-101,Dome Camera,CCTV,,,,,,PENDING
+2996,CAM-102,Bullet Camera,CCTV,,,,,,PENDING
+2996,CAM-103,PTZ Camera,CCTV,,,,,,PENDING
+2996,FA-001,Horn Strobe,Fire Alarm,,,,,,PENDING
+2996,FA-002,Smoke Detector,Fire Alarm,,,,,,PENDING
+2996,FA-003,Pull Station,Fire Alarm,,,,,,PENDING
+2996,ACS-001,Card Reader,Access Control,,,,,,PENDING
+2996,ACS-002,Door Contact,Access Control,,,,,,PENDING
+2996,HVAC-001,Thermostat,HVAC,,,,,,PENDING
+2996,HVAC-002,Damper,HVAC,,,,,,PENDING
+2996,INTR-001,Motion Sensor,Intrusion,,,,,,PENDING
+2996,INTR-002,Glass Break,Intrusion,,,,,,PENDING

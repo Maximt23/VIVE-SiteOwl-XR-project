@@ -1,0 +1,4 @@
+TaskID,Site,X,Y,Latitude,Longitude,Area,Notes
+TASK-001,2996,12.50,88.20,32.81234,-96.81234,Front Entrance,Stand at main entrance facing north
+TASK-002,2996,45.00,120.50,32.81240,-96.81230,Loading Dock,Stand at dock door facing east
+TASK-003,2996,78.25,45.00,32.81228,-96.81245,Server Room,Stand at server room entrance
