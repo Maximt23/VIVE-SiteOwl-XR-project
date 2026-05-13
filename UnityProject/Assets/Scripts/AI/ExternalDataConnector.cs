@@ -15,7 +15,8 @@ namespace SiteOwlXR.AI
     public class ExternalDataConnector : MonoBehaviour
     {
         [Header("Connection Settings")]
-        public string baseUrl = "http://192.168.1.100:8080";  // Other machine IP
+        [Tooltip("Must be HTTPS in production — never plain HTTP (store layout is sensitive data).")]
+        public string baseUrl = "https://192.168.1.100:8080";  // Other machine IP
         public string apiKey = "";  // If authentication required
         public float timeout = 10f;
         

@@ -15,9 +15,12 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     
-    <!-- Storage for CSV and photos -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Storage: maxSdkVersion caps legacy permission on Android 10+;
+         on Android 11+ use MediaStore API instead (handled in PhotoCapture) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     
     <!-- Internet for Git push -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -33,7 +36,8 @@
         android:label="SiteOwl XR"
         android:icon="@mipmap/app_icon"
         android:requestLegacyExternalStorage="true"
-        android:allowBackup="true">
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         
         <activity
             android:name="com.unity3d.player.UnityPlayerActivity"

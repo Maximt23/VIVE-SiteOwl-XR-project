@@ -72,7 +72,7 @@ namespace SiteOwlXR.AI
             UpdateStatus("AI analyzing photo...", "Scanning image for device identification");
             
             // Trigger recognition
-            recognizer?.AnalyzePhoto(photoPath, device.DeviceID);
+            recognizer?.AnalyzePhotoAsync(photoPath, device.DeviceID);
         }
         
         void OnRecognitionComplete(List<RecognitionResult> suggestions)

@@ -136,18 +136,19 @@ namespace SiteOwlXR.Core
                 UpdateGpsData();
                 
                 Debug.Log($"[RealGpsManager] GPS LOCKED! Location: {Latitude}, {Longitude} (±{Accuracy}m)");
-                Debug.Log($"[RealGpsManager] REAL SATELLITE GPS ACTIVE");
-                
                 OnGpsInitialized?.Invoke();
+
+                // Poll at 1 Hz — GPS hardware only updates ~1/sec anyway
+                InvokeRepeating(nameof(PollGps), 1f, 1f);
             }
         }
         
-        void Update()
+        void Update() { }  // GPS polling moved to InvokeRepeating — see InitializeGps()
+
+        private void PollGps()
         {
             if (IsGpsReady && Input.location.status == LocationServiceStatus.Running)
-            {
                 UpdateGpsData();
-            }
         }
         
         void UpdateGpsData()

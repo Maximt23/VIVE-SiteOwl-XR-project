@@ -63,3 +63,10 @@ Assets/StreamingAssets/Photos/
 # Temp backup files
 *.backup
 *.bak
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+tests/__pycache__/

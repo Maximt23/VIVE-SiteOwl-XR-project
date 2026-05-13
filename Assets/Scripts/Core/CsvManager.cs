@@ -68,6 +68,7 @@ namespace SiteOwlXR.Core
 
         // ── Public surface ────────────────────────────────────────────────────
         public List<DeviceData> Devices        => devices;
+        public string           LoadedPath     => loadedPath;
         public int TotalCount                  => devices.Count;
         public int CapturedCount               => devices.Count(d => !d.NeedsCapture);
         public int RemainingCount              => devices.Count(d =>  d.NeedsCapture);
@@ -232,7 +233,7 @@ namespace SiteOwlXR.Core
                 else
                     File.Move(tempPath, loadedPath);
 
-                Debug.Log($"[CsvManager] Saved '{Path.GetFileName(loadedPath)}'. " + +
+                Debug.Log($"[CsvManager] Saved '{Path.GetFileName(loadedPath)}'. " +
                           $"{CapturedCount}/{TotalCount} coordinates captured.");
                 OnDataSaved?.Invoke();
                 return true;

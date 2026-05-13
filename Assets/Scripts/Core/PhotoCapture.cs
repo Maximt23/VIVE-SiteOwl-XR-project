@@ -1,276 +1,231 @@
 using UnityEngine;
 using System;
-using System.IO;
 using System.Collections;
+using System.IO;
 
 namespace SiteOwlXR.Core
 {
     /// <summary>
-    /// Handles photo capture using the VIVE headset passthrough camera.
-    /// Saves photos to device-specific folders.
+    /// Captures photos using WebCamTexture — works on Android (VIVE XR Elite)
+    /// and in the Unity editor. Windows.WebCam was HoloLens-only and is removed.
+    ///
+    /// Output path (in priority order):
+    ///   1. PhotosOutputPath Inspector field (if non-empty)
+    ///   2. Application.persistentDataPath/CapturedPhotos  (Android sandbox)
     /// </summary>
     public class PhotoCapture : MonoBehaviour
     {
         [Header("Settings")]
-        public int PhotoWidth = 1920;
-        public int PhotoHeight = 1080;
-        public string PhotosFolder = "CapturedPhotos";
-        public string FileFormat = "jpg";
-        
-        [Header("Debug")]
-        public bool ShowDebugUI = false;
-        
-        private string photosPath;
-        private UnityEngine.Windows.WebCam.PhotoCapture photoCaptureObject;
-        private bool isCapturing = false;
-        private Action<string> onPhotoComplete;
-        private string pendingDeviceId;
-        
-        public bool IsReady => photoCaptureObject != null;
-        public bool IsCapturing => isCapturing;
-        
-        public event Action OnCaptureStarted;
-        public event Action<string> OnPhotoSaved;
-        public event Action<string> OnCaptureError;
-        
+        [Tooltip("Absolute output path for photos. Leave blank to use app data folder.")]
+        public string PhotosOutputPath = "";
+        public int    PhotoWidth   = 1920;
+        public int    PhotoHeight  = 1080;
+        public string FileFormat   = "jpg";     // "jpg" or "png"
+
+        [Header("Camera")]
+        [Tooltip("Index into WebCamTexture.devices[]. 0 = first/back camera.")]
+        public int    CameraDeviceIndex = 0;
+        [Tooltip("Seconds to wait for WebCamTexture to warm up before grabbing a frame.")]
+        public float  CameraWarmupSeconds = 1.5f;
+
+        // ── Public state ─────────────────────────────────────────────────────
+        public bool IsReady     => _ready;
+        public bool IsCapturing => _capturing;
+
+        public event Action           OnCaptureStarted;
+        public event Action<string>   OnPhotoSaved;
+        public event Action<string>   OnCaptureError;
+
+        // ── Private ──────────────────────────────────────────────────────────
+        private string        _photosPath;
+        private bool          _ready     = false;
+        private bool          _capturing = false;
+        private WebCamTexture _cam;
+
+        // ── Lifecycle ─────────────────────────────────────────────────────────
         void Start()
         {
-            photosPath = Path.Combine(Application.persistentDataPath, PhotosFolder);
-            EnsureDirectoryExists();
-            
-            // Check if PhotoCapture is available on this platform
-            if (!UnityEngine.Windows.WebCam.PhotoCapture.IsSupported)
-            {
-                Debug.LogWarning("[PhotoCapture] PhotoCapture not supported on this platform. " +
-                    "Will use screenshot fallback.");
-            }
+            _photosPath = string.IsNullOrWhiteSpace(PhotosOutputPath)
+                ? Path.Combine(Application.persistentDataPath, "CapturedPhotos")
+                : PhotosOutputPath;
+
+            EnsureDir(_photosPath);
         }
-        
-        private void EnsureDirectoryExists()
-        {
-            if (!Directory.Exists(photosPath))
-            {
-                Directory.CreateDirectory(photosPath);
-            }
-        }
-        
+
         /// <summary>
-        /// Starts the photo capture system. Call this before taking photos.
+        /// Opens the device camera. Called by CaptureController.Start().
+        /// Safe to call multiple times — no-ops if already initialised.
         /// </summary>
         public void Initialize()
         {
-            if (!UnityEngine.Windows.WebCam.PhotoCapture.IsSupported)
+            if (_ready) return;
+
+            if (WebCamTexture.devices.Length == 0)
             {
-                Debug.Log("[PhotoCapture] Using screenshot fallback.");
+                Debug.LogWarning("[PhotoCapture] No camera devices found. Screenshot fallback active.");
+                _ready = true;   // let capture proceed — will use screenshot
                 return;
             }
-            
-            var resolution = UnityEngine.Windows.WebCam.PhotoCapture.SupportedResolutions.GetEnumerator();
-            resolution.MoveNext();
-            
-            var cameraParams = new UnityEngine.Windows.WebCam.CameraParameters(
-                resolution.Current.width,
-                resolution.Current.height,
-                UnityEngine.Windows.WebCam.PhotoCapture.SupportedFormats.PNG
-            );
-            
-            photoCaptureObject = UnityEngine.Windows.WebCam.PhotoCapture.Create();
-            photoCaptureObject.StartPhotoModeAsync(cameraParams, OnPhotoModeStarted);
+
+            int idx   = Mathf.Clamp(CameraDeviceIndex, 0, WebCamTexture.devices.Length - 1);
+            string dev = WebCamTexture.devices[idx].name;
+
+            _cam = new WebCamTexture(dev, PhotoWidth, PhotoHeight, 30);
+            _cam.Play();
+
+            _ready = true;
+            Debug.Log($"[PhotoCapture] Camera '{dev}' opened ({PhotoWidth}x{PhotoHeight}).");
         }
-        
-        private void OnPhotoModeStarted(UnityEngine.Windows.WebCam.PhotoCapture.PhotoCaptureResult result)
-        {
-            if (result.success)
-            {
-                Debug.Log("[PhotoCapture] Photo mode started successfully.");
-            }
-            else
-            {
-                Debug.LogError("[PhotoCapture] Failed to start photo mode!");
-                OnCaptureError?.Invoke("Failed to initialize camera");
-            }
-        }
-        
+
+        // ── Capture ───────────────────────────────────────────────────────────
+
         /// <summary>
-        /// Captures a photo for the specified device.
+        /// Captures a photo and invokes <paramref name="onComplete"/> with the saved path.
         /// </summary>
-        /// <param name="deviceId">Device identifier for folder naming</param>
-        /// <param name="onComplete">Callback with full path to saved photo</param>
         public void TakePhoto(string deviceId, Action<string> onComplete)
         {
-            if (isCapturing)
+            if (_capturing)
             {
-                Debug.LogWarning("[PhotoCapture] Already capturing!");
+                Debug.LogWarning("[PhotoCapture] Already capturing — ignoring duplicate call.");
                 return;
             }
-            
-            pendingDeviceId = deviceId;
-            onPhotoComplete = onComplete;
-            isCapturing = true;
-            
+            StartCoroutine(DoCaptureCoroutine(deviceId, onComplete));
+        }
+
+        private IEnumerator DoCaptureCoroutine(string deviceId, Action<string> onComplete)
+        {
+            _capturing = true;
             OnCaptureStarted?.Invoke();
-            
-            if (photoCaptureObject != null)
+
+            // --- Camera path ---
+            if (_cam != null && _cam.isPlaying)
             {
-                photoCaptureObject.TakePhotoAsync(OnPhotoCaptured);
+                // Give the sensor a moment to auto-expose after the shutter opens
+                yield return new WaitForSeconds(CameraWarmupSeconds);
+                yield return new WaitForEndOfFrame();
+
+                var tex = new Texture2D(_cam.width, _cam.height, TextureFormat.RGB24, false);
+                tex.SetPixels32(_cam.GetPixels32());
+                tex.Apply();
+
+                string path = SaveTexture(tex, deviceId);
+                Destroy(tex);
+
+                _capturing = false;
+                if (path != null)
+                {
+                    OnPhotoSaved?.Invoke(path);
+                    onComplete?.Invoke(path);
+                }
+                else
+                {
+                    OnCaptureError?.Invoke("Failed to save photo.");
+                    onComplete?.Invoke(null);
+                }
             }
             else
             {
-                // Fallback: Use screenshot
-                StartCoroutine(TakeScreenshotFallback());
-            }
-        }
-        
-        private void OnPhotoCaptured(UnityEngine.Windows.WebCam.PhotoCapture.PhotoCaptureResult result, 
-            UnityEngine.Windows.WebCam.PhotoCaptureFrame photoCaptureFrame)
-        {
-            if (!result.success)
-            {
-                Debug.LogError("[PhotoCapture] Capture failed!");
-                isCapturing = false;
-                OnCaptureError?.Invoke("Photo capture failed");
-                onPhotoComplete?.Invoke(null);
-                return;
-            }
-            
-            // Create texture and apply frame
-            var texture = new Texture2D(PhotoWidth, PhotoHeight, TextureFormat.RGB24, false);
-            photoCaptureFrame.UploadImageDataToTexture(texture);
-            
-            // Save the photo
-            string path = SaveTexture(texture, pendingDeviceId);
-            
-            // Cleanup
-            Destroy(texture);
-            
-            isCapturing = false;
-            OnPhotoSaved?.Invoke(path);
-            onPhotoComplete?.Invoke(path);
-        }
-        
-        private IEnumerator TakeScreenshotFallback()
-        {
-            // Wait for end of frame
-            yield return new WaitForEndOfFrame();
-            
-            // Capture screen
-            var texture = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
-            texture.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
-            texture.Apply();
-            
-            // Scale to target size
-            var scaled = ScaleTexture(texture, PhotoWidth, PhotoHeight);
-            Destroy(texture);
-            
-            // Save
-            string path = SaveTexture(scaled, pendingDeviceId);
-            Destroy(scaled);
-            
-            isCapturing = false;
-            OnPhotoSaved?.Invoke(path);
-            onPhotoComplete?.Invoke(path);
-        }
-        
-        private Texture2D ScaleTexture(Texture2D source, int targetWidth, int targetHeight)
-        {
-            var result = new Texture2D(targetWidth, targetHeight, source.format, false);
-            var pixels = new Color[targetWidth * targetHeight];
-            
-            float xScale = (float)source.width / targetWidth;
-            float yScale = (float)source.height / targetHeight;
-            
-            for (int y = 0; y < targetHeight; y++)
-            {
-                for (int x = 0; x < targetWidth; x++)
+                // --- Screenshot fallback (editor / no camera) ---
+                Debug.LogWarning("[PhotoCapture] Camera not available — using screenshot fallback.");
+                yield return new WaitForEndOfFrame();
+
+                var screen = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+                screen.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
+                screen.Apply();
+
+                var scaled = ScaleTexture(screen, PhotoWidth, PhotoHeight);
+                Destroy(screen);
+
+                string path = SaveTexture(scaled, deviceId);
+                Destroy(scaled);
+
+                _capturing = false;
+                if (path != null)
                 {
-                    int sourceX = Mathf.FloorToInt(x * xScale);
-                    int sourceY = Mathf.FloorToInt(y * yScale);
-                    pixels[y * targetWidth + x] = source.GetPixel(sourceX, sourceY);
+                    OnPhotoSaved?.Invoke(path);
+                    onComplete?.Invoke(path);
+                }
+                else
+                {
+                    OnCaptureError?.Invoke("Screenshot save failed.");
+                    onComplete?.Invoke(null);
                 }
             }
-            
-            result.SetPixels(pixels);
-            result.Apply();
-            return result;
         }
-        
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+
         private string SaveTexture(Texture2D texture, string deviceId)
         {
-            EnsureDirectoryExists();
+            EnsureDir(_photosPath);
 
-            string safeDeviceId  = SanitizeFileName(deviceId);
-            string deviceFolder  = Path.GetFullPath(Path.Combine(photosPath, safeDeviceId));
+            string safe   = SanitizeFileName(deviceId);
+            string folder = Path.GetFullPath(Path.Combine(_photosPath, safe));
 
-            // Path traversal guard — reject anything that escapes photosPath
-            if (!deviceFolder.StartsWith(Path.GetFullPath(photosPath), StringComparison.OrdinalIgnoreCase))
+            // Path traversal guard
+            if (!folder.StartsWith(Path.GetFullPath(_photosPath), StringComparison.OrdinalIgnoreCase))
             {
                 Debug.LogError($"[PhotoCapture] Path traversal blocked for deviceId: {deviceId}");
-                OnCaptureError?.Invoke("Invalid device ID — path traversal blocked");
+                OnCaptureError?.Invoke("Invalid device ID.");
                 return null;
             }
 
-            if (!Directory.Exists(deviceFolder))
-                Directory.CreateDirectory(deviceFolder);
-            
-            // Generate filename with timestamp
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string filename = $"{safeDeviceId}_{timestamp}.{FileFormat}";
-            string fullPath = Path.Combine(deviceFolder, filename);
-            
-            // Encode and save
-            byte[] bytes;
-            if (FileFormat.ToLower() == "png")
+            EnsureDir(folder);
+
+            string ts       = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string filename = $"{safe}_{ts}.{FileFormat}";
+            string fullPath = Path.Combine(folder, filename);
+
+            byte[] bytes = FileFormat.Equals("png", StringComparison.OrdinalIgnoreCase)
+                ? texture.EncodeToPNG()
+                : texture.EncodeToJPG(90);
+
+            try
             {
-                bytes = texture.EncodeToPNG();
+                File.WriteAllBytes(fullPath, bytes);
+                Debug.Log($"[PhotoCapture] Saved: {fullPath}");
+                return fullPath;
             }
-            else
+            catch (Exception ex)
             {
-                bytes = texture.EncodeToJPG(90); // 90% quality
+                Debug.LogError($"[PhotoCapture] Write failed: {ex.Message}");
+                return null;
             }
-            
-            File.WriteAllBytes(fullPath, bytes);
-            
-            Debug.Log($"[PhotoCapture] Saved: {fullPath}");
-            return fullPath;
         }
-        
-        private string SanitizeFileName(string name)
+
+        private static string SanitizeFileName(string name)
         {
             if (string.IsNullOrEmpty(name)) return "unknown";
-
             foreach (char c in Path.GetInvalidFileNameChars())
                 name = name.Replace(c, '_');
-
-            // Dots allow path traversal via ".." — replace them too
             name = name.Replace(".", "_").Replace(" ", "_").ToLower();
+            return string.IsNullOrWhiteSpace(name.Trim('_')) ? "unknown" : name;
+        }
 
-            if (string.IsNullOrWhiteSpace(name) || name.Trim('_').Length == 0)
-                name = "unknown";
+        private static Texture2D ScaleTexture(Texture2D src, int w, int h)
+        {
+            var dst = new Texture2D(w, h, src.format, false);
+            float sx = (float)src.width  / w;
+            float sy = (float)src.height / h;
+            var pixels = new Color[w * h];
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                pixels[y * w + x] = src.GetPixel(Mathf.FloorToInt(x * sx), Mathf.FloorToInt(y * sy));
+            dst.SetPixels(pixels);
+            dst.Apply();
+            return dst;
+        }
 
-            return name;
-        }
-        
-        /// <summary>
-        /// Stops the photo capture system and releases resources.
-        /// </summary>
-        public void StopPhotoMode()
+        private static void EnsureDir(string path)
         {
-            if (photoCaptureObject != null)
-            {
-                photoCaptureObject.StopPhotoModeAsync(OnPhotoModeStopped);
-            }
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
         }
-        
-        private void OnPhotoModeStopped(UnityEngine.Windows.WebCam.PhotoCapture.PhotoCaptureResult result)
-        {
-            photoCaptureObject.Dispose();
-            photoCaptureObject = null;
-            Debug.Log("[PhotoCapture] Photo mode stopped.");
-        }
-        
+
         void OnDestroy()
         {
-            StopPhotoMode();
+            if (_cam != null && _cam.isPlaying)
+                _cam.Stop();
         }
     }
 }

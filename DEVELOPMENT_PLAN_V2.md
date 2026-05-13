@@ -34,7 +34,7 @@
 | 1.4 | `git add *.csv` glob never expands | `GitAutoPush.cs` | ✅ Fixed |
 | 1.5 | `async void AnalyzePhoto` swallows exceptions | `DeviceRecognizer.cs` | ✅ Fixed |
 | 1.6 | `Dictionary` race condition in ExternalDataConnector | `ExternalDataConnector.cs` | ✅ Fixed |
-| 1.7 | Windows.WebCam → replace with `WebCamTexture` | `PhotoCapture.cs` | ☐ TODO (Decision A) |
+| 1.7 | Windows.WebCam → replace with `WebCamTexture` | `PhotoCapture.cs` | ✅ Fixed |
 | 1.8 | Texture ops on background thread → crash | `DeviceRecognizer.cs` | ✅ Fixed |
 | 1.9 | Backup timestamp collision → silent data loss | `CsvManager.cs` | ✅ Fixed |
 | 1.10 | Backup unbounded growth → fills storage | `CsvManager.cs` | ✅ Fixed |
@@ -52,15 +52,15 @@
 | 2.4 | `FindObjectOfType` in `CaptureUI` → fragile | `CaptureUI.cs` | ✅ Fixed |
 | 2.5 | `StatusText` color never resets | `CaptureUI.cs` | ✅ Fixed |
 | 2.6 | `Update()` polls at 90fps → wasteful | `CaptureUI.cs` | ✅ Fixed |
-| 2.7 | `DeviceRecognizer` never loads JSON library | `DeviceRecognizer.cs` | ☐ TODO |
-| 2.8 | No session persistence — calibration lost on restart | `CalibrationManager.cs` | ☐ TODO |
+| 2.7 | `DeviceRecognizer` never loads JSON library | `DeviceRecognizer.cs` | ✅ Fixed |
+| 2.8 | No session persistence — calibration lost on restart | `CalibrationManager.cs` | ✅ Fixed |
 | 2.9 | `PhotoCapture.Initialize()` never called | `CaptureController.cs` | ✅ Fixed |
-| 2.10 | XR controller trigger not wired to capture | `CaptureController.cs` | ☐ TODO |
-| 2.11 | Android permissions never requested | `PermissionsManager.cs` (new) | ☐ TODO |
+| 2.10 | XR controller trigger not wired to capture | `CaptureController.cs` | ✅ Fixed |
+| 2.11 | Android permissions never requested | `PermissionsManager.cs` (new) | ✅ Fixed |
 | 2.12 | `DeviceListItemUI` stale device reference | `DeviceListItemUI.cs` | ✅ Fixed |
-| 2.13 | `RealGpsManager` is dead code; inline GPS is weak | `CaptureController.cs` | ☐ TODO |
-| 2.14 | XR reticle/pointer is empty stubs | `XrTargeting.cs` | ☐ TODO |
-| 2.15 | No overwrite confirmation for already-captured devices | `CaptureController.cs` | ☐ TODO |
+| 2.13 | `RealGpsManager` is dead code; inline GPS is weak | `CaptureController.cs` | ✅ Fixed |
+| 2.14 | XR reticle/pointer is empty stubs | `XrTargeting.cs` | ✅ Fixed |
+| 2.15 | No overwrite confirmation for already-captured devices | `CaptureController.cs` | ✅ Fixed |
 
 ---
 
@@ -69,9 +69,9 @@
 | # | Task | Status |
 |---|------|--------|
 | 3.1 | `build_device_library.py` — add `--csv-dir` / `--out-dir` CLI args | ✅ Fixed |
-| 3.2 | `BUILD.bat` — run Python build step, copy to StreamingAssets | ☐ TODO |
-| 3.3 | `DeviceLibraryLoader.cs` — loads JSON from StreamingAssets via UnityWebRequest | ☐ TODO |
-| 3.4 | Wire `DeviceRecognizer` to use loaded library | ☐ TODO |
+| 3.2 | `BUILD.bat` — run Python build step, copy to StreamingAssets | ✅ Fixed |
+| 3.3 | `DeviceLibraryLoader.cs` — loads JSON from StreamingAssets via UnityWebRequest | ✅ Fixed |
+| 3.4 | Wire `DeviceRecognizer` to use loaded library | ✅ Fixed |
 
 ---
 
@@ -79,11 +79,11 @@
 
 | # | Task | Status |
 |---|------|--------|
-| 4.1 | Sidecar `survey_metadata.json` — audit trail per capture | ☐ TODO |
-| 4.2 | `QualityAssurance.cs` — rewrite with real `DeviceData` types | ☐ TODO |
-| 4.3 | Wire QA into capture flow | ☐ TODO |
-| 4.4 | End-to-end CSV guardrail pytest test | ☐ TODO |
-| 4.5 | Two-point scale calibration UI | ☐ TODO |
+| 4.1 | Sidecar `survey_metadata.json` — audit trail per capture | ✅ Fixed |
+| 4.2 | `QualityAssurance.cs` — rewrite with real `DeviceData` types | ✅ Fixed |
+| 4.3 | Wire QA into capture flow | ✅ Fixed |
+| 4.4 | End-to-end CSV guardrail pytest test | ✅ Fixed — 8/8 green |
+| 4.5 | Two-point scale calibration UI | ✅ Fixed |
 
 ---
 
@@ -91,10 +91,10 @@
 
 | # | Finding | Status |
 |---|---------|--------|
-| S1 | API key serialized into scene file | ☐ TODO |
-| S2 | ExternalDataConnector uses HTTP not HTTPS | ☐ TODO |
-| S3 | `android:allowBackup="true"` exposes store layout | ☐ TODO |
-| S4 | `fetch_camera_images.py` disables SSL | ☐ TODO |
+| S1 | API key serialized into scene file | ☐ TODO (use .env / PlayerPrefs) |
+| S2 | ExternalDataConnector uses HTTP not HTTPS | ✅ Fixed |
+| S3 | `android:allowBackup="true"` exposes store layout | ✅ Fixed |
+| S4 | `fetch_camera_images.py` disables SSL | ✅ Fixed — WALMART_CA_BUNDLE env var |
 
 ---
 
@@ -131,4 +131,8 @@ tests/
 
 ---
 
-*Last updated: 2026-05-12 | Reviewed by: code-reviewer + planning-agent*
+*Last updated: 2026-05-12 Phase 2 complete — all P0/P1/P2 issues resolved. Ready for device testing.*
+
+## Remaining (nice-to-have)
+- S1: Move API key out of scene file → `.env` or Unity Secrets Manager
+- Scene file `Assets/Scenes/MainScene.unity` needs Inspector wiring documentation

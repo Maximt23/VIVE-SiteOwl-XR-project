@@ -22,38 +22,87 @@ namespace SiteOwlXR.AI
         public string externalDataEndpoint = "";  // URL to other machine/database
         public bool useExternalDatabase = false;
         
-        [Header("Device Categories")]
+        [Header("Device Categories — fallback if library not loaded")]
         public List<DeviceCategory> knownCategories = new List<DeviceCategory>
         {
-            new DeviceCategory { type = "Dome Camera", keywords = new[] { "dome", "ceiling", "camera", "round", "enclosed" }, systemType = "CCTV" },
-            new DeviceCategory { type = "Bullet Camera", keywords = new[] { "bullet", "camera", "cylinder", "outdoor", "wall" }, systemType = "CCTV" },
-            new DeviceCategory { type = "PTZ Camera", keywords = new[] { "ptz", "camera", "dome", "moving", "motorized" }, systemType = "CCTV" },
-            new DeviceCategory { type = "Card Reader", keywords = new[] { "card", "reader", "rfid", "prox", "keypad", "access" }, systemType = "Access Control" },
-            new DeviceCategory { type = "Door Contact", keywords = new[] { "door", "contact", "sensor", "magnetic", "reed" }, systemType = "Access Control" },
-            new DeviceCategory { type = "Smoke Detector", keywords = new[] { "smoke", "detector", "fire", "round", "ceiling" }, systemType = "Fire Alarm" },
-            new DeviceCategory { type = "Horn Strobe", keywords = new[] { "horn", "strobe", "red", "loud", "fire", "alarm" }, systemType = "Fire Alarm" },
-            new DeviceCategory { type = "Pull Station", keywords = new[] { "pull", "station", "red", "handle", "fire", "manual" }, systemType = "Fire Alarm" },
-            new DeviceCategory { type = "Motion Sensor", keywords = new[] { "motion", "sensor", "pir", "infrared", "white", "round" }, systemType = "Intrusion" },
-            new DeviceCategory { type = "Glass Break", keywords = new[] { "glass", "break", "sensor", "small", "white" }, systemType = "Intrusion" },
-            new DeviceCategory { type = "Thermostat", keywords = new[] { "thermostat", "hvac", "wall", "digital", "display" }, systemType = "HVAC" },
-            new DeviceCategory { type = "Damper", keywords = new[] { "damper", "hvac", "duct", "fire", "smoke" }, systemType = "HVAC" },
-            new DeviceCategory { type = "Emergency Exit Sign", keywords = new[] { "exit", "sign", "green", "red", "emergency", "light" }, systemType = "Emergency" },
-            new DeviceCategory { type = "Intercom", keywords = new[] { "intercom", "speaker", "microphone", "button", "wall" }, systemType = "Communications" },
+            new DeviceCategory { type = "Dome Camera",        keywords = new[] { "dome", "ceiling", "camera", "round", "enclosed" },        systemType = "CCTV" },
+            new DeviceCategory { type = "Bullet Camera",      keywords = new[] { "bullet", "camera", "cylinder", "outdoor", "wall" },       systemType = "CCTV" },
+            new DeviceCategory { type = "PTZ Camera",         keywords = new[] { "ptz", "camera", "dome", "moving", "motorized" },          systemType = "CCTV" },
+            new DeviceCategory { type = "Card Reader",        keywords = new[] { "card", "reader", "rfid", "prox", "keypad", "access" },    systemType = "Access Control" },
+            new DeviceCategory { type = "Door Contact",       keywords = new[] { "door", "contact", "sensor", "magnetic", "reed" },         systemType = "Access Control" },
+            new DeviceCategory { type = "Smoke Detector",     keywords = new[] { "smoke", "detector", "fire", "round", "ceiling" },         systemType = "Fire Alarm" },
+            new DeviceCategory { type = "Horn Strobe",        keywords = new[] { "horn", "strobe", "red", "loud", "fire", "alarm" },        systemType = "Fire Alarm" },
+            new DeviceCategory { type = "Pull Station",       keywords = new[] { "pull", "station", "red", "handle", "fire", "manual" },    systemType = "Fire Alarm" },
+            new DeviceCategory { type = "Motion Sensor",      keywords = new[] { "motion", "sensor", "pir", "infrared", "white", "round" }, systemType = "Intrusion" },
+            new DeviceCategory { type = "Glass Break",        keywords = new[] { "glass", "break", "sensor", "small", "white" },           systemType = "Intrusion" },
+            new DeviceCategory { type = "Thermostat",         keywords = new[] { "thermostat", "hvac", "wall", "digital", "display" },      systemType = "HVAC" },
+            new DeviceCategory { type = "Damper",             keywords = new[] { "damper", "hvac", "duct", "fire", "smoke" },              systemType = "HVAC" },
+            new DeviceCategory { type = "Emergency Exit Sign",keywords = new[] { "exit", "sign", "green", "red", "emergency", "light" },   systemType = "Emergency" },
+            new DeviceCategory { type = "Intercom",           keywords = new[] { "intercom", "speaker", "microphone", "button", "wall" },   systemType = "Communications" },
         };
-        
+
         [Header("Events")]
         public event Action<List<RecognitionResult>> OnRecognitionComplete;
         public event Action<string> OnRecognitionError;
-        
+
         private ExternalDataConnector externalData;
+        private DeviceLibraryLoader   libraryLoader;
         private bool isProcessing = false;
-        
+
         void Start()
         {
-            externalData = GetComponent<ExternalDataConnector>();
-            
-            // Log available categories
-            Debug.Log($"[DeviceRecognizer] Loaded {knownCategories.Count} device categories");
+            externalData  = GetComponent<ExternalDataConnector>();
+            libraryLoader = GetComponent<DeviceLibraryLoader>();
+
+            if (libraryLoader != null)
+            {
+                if (libraryLoader.IsLoaded)
+                    MergeLibraryIntoCategories();
+                else
+                    libraryLoader.OnLibraryLoaded += MergeLibraryIntoCategories;
+            }
+
+            Debug.Log($"[DeviceRecognizer] {knownCategories.Count} fallback categories ready.");
+        }
+
+        /// <summary>
+        /// Enriches knownCategories with all models from camera_model_library.json.
+        /// Called once the library finishes loading from StreamingAssets.
+        /// </summary>
+        private void MergeLibraryIntoCategories()
+        {
+            if (libraryLoader?.Models == null) return;
+            int added = 0;
+            foreach (var model in libraryLoader.Models)
+            {
+                // Skip if an identical type already exists (avoid duplicating generic entries)
+                string label = $"{model.manufacturer} {model.model_name}";
+                if (knownCategories.Exists(c => c.type.Equals(label, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                var cat = new DeviceCategory
+                {
+                    type       = label,
+                    systemType = "CCTV",
+                    keywords   = BuildKeywords(model),
+                };
+                knownCategories.Add(cat);
+                added++;
+            }
+            Debug.Log($"[DeviceRecognizer] Merged {added} models from library. " +
+                      $"Total categories: {knownCategories.Count}");
+        }
+
+        private static string[] BuildKeywords(CameraModel model)
+        {
+            var kw = new System.Collections.Generic.List<string>();
+            if (model.keywords != null)     kw.AddRange(model.keywords);
+            if (model.part_numbers != null) kw.AddRange(model.part_numbers);
+            kw.Add(model.form_factor ?? "");
+            kw.Add(model.manufacturer?.ToLower() ?? "");
+            kw.Add(model.model_name?.ToLower()   ?? "");
+            if (model.visual?.color != null) kw.AddRange(model.visual.color);
+            return kw.Where(k => !string.IsNullOrWhiteSpace(k)).ToArray();
         }
         
         /// <summary>

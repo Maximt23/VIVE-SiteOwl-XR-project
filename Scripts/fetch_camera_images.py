@@ -33,6 +33,16 @@ SLEEP_BETWEEN    = 2.0      # polite pause between searches (seconds)
 REQUEST_TIMEOUT  = 15       # image download timeout (seconds)
 FORCE_REFETCH    = False    # True → re-download even if already fetched
 
+# ── SSL ─────────────────────────────────────────────────────────────────────
+# On Walmart network the proxy does SSL inspection and presents its own cert.
+# Set WALMART_CA_BUNDLE (or REQUESTS_CA_BUNDLE) to the Walmart CA PEM path.
+# Only if neither is set AND the env var SITEOWL_SSL_INSECURE=1 do we skip verify.
+import os as _os
+_WALMART_CA     = _os.environ.get("WALMART_CA_BUNDLE") or _os.environ.get("REQUESTS_CA_BUNDLE")
+_FORCE_INSECURE = _os.environ.get("SITEOWL_SSL_INSECURE", "0") == "1"
+SSL_VERIFY      = _WALMART_CA if _WALMART_CA else (False if _FORCE_INSECURE else True)
+_VERIFY_INSECURE = SSL_VERIFY is False
+
 # ── Walmart proxy (NTLM auth handled by OS when run from regular session) ────
 PROXY_URL = "http://sysproxy.wal-mart.com:8080"
 PROXIES   = {"http": PROXY_URL, "https": PROXY_URL}
@@ -73,7 +83,7 @@ def _image_urls_from_ddg(query: str, max_results: int) -> list[str]:
             headers=headers,
             proxies=PROXIES,
             timeout=REQUEST_TIMEOUT,
-            verify=False,
+            verify=SSL_VERIFY,
         )
         import re  # noqa: PLC0415
         vqd_match = re.search(r'vqd=(["\'])([^"\']+)\1', r.text)
@@ -106,7 +116,7 @@ def _image_urls_from_ddg(query: str, max_results: int) -> list[str]:
             headers=headers,
             proxies=PROXIES,
             timeout=REQUEST_TIMEOUT,
-            verify=False,
+            verify=SSL_VERIFY,
         )
         data = img_r.json()
         results = data.get("results", [])
@@ -128,7 +138,7 @@ def _download_image(url: str, dest: Path) -> bool:
             proxies=PROXIES,
             timeout=REQUEST_TIMEOUT,
             stream=True,
-            verify=False,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             return False
@@ -168,7 +178,7 @@ def check_connectivity() -> bool:
             "https://duckduckgo.com",
             proxies=PROXIES,
             timeout=10,
-            verify=False,
+            verify=SSL_VERIFY,
         )
         return r.status_code < 500
     except Exception as exc:
@@ -229,9 +239,11 @@ def main() -> None:
         print("Run: uv pip install requests requests-ntlm")
         sys.exit(1)
 
-    # Suppress SSL warnings for corporate proxy
-    import urllib3  # noqa: PLC0415
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    # Suppress SSL warnings ONLY when verification is explicitly disabled
+    if _VERIFY_INSECURE:
+        import urllib3  # noqa: PLC0415
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        print("WARNING: SSL verification disabled. Set WALMART_CA_BUNDLE env var to fix.")
 
     IMAGE_ROOT.mkdir(parents=True, exist_ok=True)
     library = load_library(LIBRARY_FILE)

@@ -5,317 +5,230 @@ using System.Collections;
 namespace SiteOwlXR.Core
 {
     /// <summary>
-    /// Main controller that orchestrates the capture workflow.
-    /// Connects calibration, device selection, photo capture, and CSV updates.
+    /// Master orchestrator for the XR capture workflow.
+    ///
+    ///   Raycast → coord transform → GPS → photo → [AI] → CSV write
+    ///
+    /// Controller trigger fires capture when aim is valid.
+    /// Overwrite confirmation shown if device already has valid coordinates.
     /// </summary>
     public class CaptureController : MonoBehaviour
     {
-        [Header("Dependencies")]
+        [Header("Dependencies — assign in Inspector")]
         public CalibrationManager Calibration;
-        public CsvManager CsvManager;
-        public PhotoCapture PhotoCapture;
-        public Transform CameraTransform;
-        
-        [Header("Raycast Settings")]
-        public float MaxRaycastDistance = 50f;
-        public LayerMask RaycastLayers = ~0; // All layers
-        
-        [Header("UI References")]
+        public CsvManager         CsvManager;
+        public PhotoCapture       PhotoCapture;
+        public RealGpsManager     GpsManager;      // optional; null = no GPS
+        public Transform          CameraTransform;
+
+        [Header("Raycast")]
+        public float     MaxRaycastDistance = 50f;
+        public LayerMask RaycastLayers      = ~0;
+
+        [Header("UI")]
         public CaptureUI CaptureUI;
-        
-        [Header("Events")]
-        public event Action<DeviceData> OnCaptureComplete;
-        public event Action<string> OnCaptureError;
-        
-        private DeviceData currentDevice;
-        private bool isCapturing = false;
-        
+
         [Header("Timing")]
-        [Tooltip("Seconds to wait for photo before aborting capture.")]
+        [Tooltip("Seconds before photo callback is considered timed-out.")]
         public float PhotoTimeoutSeconds = 15f;
 
+        [Header("XR Input")]
+        [Tooltip("KeyCode that fires capture (mapped to controller trigger in XR).")]
+        public KeyCode TriggerKey = KeyCode.JoystickButton14; // right trigger on most XR runtimes
+
+        // ── Events ────────────────────────────────────────────────────────────
+        public event Action<DeviceData> OnCaptureComplete;
+        public event Action<string>     OnCaptureError;
+
+        // ── State ─────────────────────────────────────────────────────────────
+        private DeviceData _currentDevice;
+        private bool       _isCapturing;
+
+        // ── Lifecycle ─────────────────────────────────────────────────────────
         void Start()
         {
             if (CameraTransform == null)
                 CameraTransform = Camera.main?.transform;
 
-            if (Calibration == null)
-                Debug.LogError("[CaptureController] CalibrationManager not assigned!");
-            if (CsvManager == null)
-                Debug.LogError("[CaptureController] CsvManager not assigned!");
-            if (PhotoCapture == null)
-                Debug.LogError("[CaptureController] PhotoCapture not assigned!");
+            ValidateDeps();
 
-            // Subscribe to events
             if (PhotoCapture != null)
             {
                 PhotoCapture.OnPhotoSaved   += OnPhotoSaved;
                 PhotoCapture.OnCaptureError += OnPhotoCaptureError;
-
-                // Initialize the camera system so TakePhoto uses the real camera, not screenshot
                 PhotoCapture.Initialize();
             }
         }
-        
-        /// <summary>
-        /// Selects a device for capture.
-        /// </summary>
+
+        private void ValidateDeps()
+        {
+            if (Calibration  == null) Debug.LogError("[CaptureController] CalibrationManager not assigned!");
+            if (CsvManager   == null) Debug.LogError("[CaptureController] CsvManager not assigned!");
+            if (PhotoCapture == null) Debug.LogError("[CaptureController] PhotoCapture not assigned!");
+            if (GpsManager   == null) Debug.LogWarning("[CaptureController] GpsManager not assigned — GPS coords will be null.");
+        }
+
+        void Update()
+        {
+            // XR controller trigger fires capture
+            if (Input.GetKeyDown(TriggerKey) && !_isCapturing)
+                CaptureCurrentDevice();
+
+#if UNITY_EDITOR
+            if (Calibration != null && Calibration.IsCalibrated && CameraTransform != null)
+                Debug.DrawRay(CameraTransform.position, CameraTransform.forward * MaxRaycastDistance, Color.cyan);
+#endif
+        }
+
+        // ── Public API ────────────────────────────────────────────────────────
+
         public void SelectDevice(DeviceData device)
         {
-            currentDevice = device;
-            Debug.Log($"[CaptureController] Selected: {device.DeviceName}");
-            
-            // Show device info in UI
+            _currentDevice = device;
             CaptureUI?.ShowDeviceInfo(device);
+            Debug.Log($"[CaptureController] Selected: {device.DeviceName}");
         }
-        
+
         /// <summary>
-        /// Performs raycast from headset to find capture point.
+        /// Called by AiCopilotUI after user accepts/skips an AI suggestion.
         /// </summary>
-        public bool GetCapturePoint(out Vector3 worldPoint, out float distance)
+        public void ProceedWithCapture()
         {
-            worldPoint = Vector3.zero;
-            distance = 0f;
-            
-            if (CameraTransform == null) return false;
-            
-            Ray ray = new Ray(CameraTransform.position, CameraTransform.forward);
-            
-            if (Physics.Raycast(ray, out RaycastHit hit, MaxRaycastDistance, RaycastLayers))
-            {
-                worldPoint = hit.point;
-                distance = hit.distance;
-                return true;
-            }
-            
-            // No hit - use point at max distance
-            worldPoint = ray.GetPoint(MaxRaycastDistance);
-            distance = MaxRaycastDistance;
-            return true;
+            if (_currentDevice == null) { OnCaptureError?.Invoke("No device selected"); return; }
+            CaptureCurrentDevice();
         }
-        
-        /// <summary>
-        /// Initiates the full capture workflow.
-        /// </summary>
+
         public void CaptureCurrentDevice()
         {
-            if (isCapturing)
+            if (_isCapturing)
             {
-                Debug.LogWarning("[CaptureController] Already capturing!");
+                Debug.LogWarning("[CaptureController] Already capturing.");
                 return;
             }
-            
-            if (currentDevice == null)
+            if (_currentDevice == null)  { OnCaptureError?.Invoke("No device selected");   return; }
+            if (!Calibration.IsCalibrated){ OnCaptureError?.Invoke("System not calibrated"); return; }
+
+            // Overwrite guard — ask user before clobbering valid coordinates
+            if (!_currentDevice.NeedsCapture)
             {
-                OnCaptureError?.Invoke("No device selected");
+                CaptureUI?.ShowOverwriteConfirmation(_currentDevice, ConfirmOverwrite);
                 return;
             }
-            
-            if (!Calibration.IsCalibrated)
-            {
-                OnCaptureError?.Invoke("System not calibrated");
-                return;
-            }
-            
-            isCapturing = true;
-            CaptureUI?.ShowCapturingState(true);
-            
-            // Step 1: Get capture point
-            if (!GetCapturePoint(out Vector3 worldPoint, out float distance))
-            {
-                OnCaptureError?.Invoke("Failed to get capture point");
-                isCapturing = false;
-                CaptureUI?.ShowCapturingState(false);
-                return;
-            }
-            
-            Debug.Log($"[CaptureController] Capture point at {worldPoint}, distance: {distance:F2}m");
-            
-            // Step 2: Convert to SiteOwl coordinates
-            Vector2 siteOwlXY = Calibration.WorldToSiteOwl(worldPoint);
-            
-            // Step 3: Get user position and facing
-            Vector2 userSiteOwlXY = Calibration.GetCurrentSiteOwlPosition();
-            float userFacing = Calibration.GetCurrentFacingDirection();
-            
-            // Step 4: Calculate confidence
-            CoordinateConfidence confidence = Calibration.CalculateConfidence();
-            
-            // Step 5: Try to get GPS (optional, secondary)
-            GetGpsCoordinates(out double? latitude, out double? longitude);
-            
-            // Step 6: Take photo
-            StartCoroutine(CaptureWithPhoto(
-                currentDevice,
-                siteOwlXY,
-                latitude,
-                longitude,
-                userSiteOwlXY,
-                userFacing,
-                confidence
-            ));
+
+            StartCapture();
         }
-        
+
+        private void ConfirmOverwrite() => StartCapture();
+
+        // ── Capture pipeline ──────────────────────────────────────────────────
+
+        private void StartCapture()
+        {
+            _isCapturing = true;
+            CaptureUI?.ShowCapturingState(true);
+
+            if (!GetCapturePoint(out Vector3 worldPoint, out _))
+            {
+                Fail("Failed to get capture point"); return;
+            }
+
+            Vector2 siteOwlXY   = Calibration.WorldToSiteOwl(worldPoint);
+            Vector2 userXY      = Calibration.GetCurrentSiteOwlPosition();
+            float   userFacing  = Calibration.GetCurrentFacingDirection();
+            var     confidence  = Calibration.CalculateConfidence();
+
+            GetGps(out double? lat, out double? lon);
+
+            StartCoroutine(CaptureWithPhoto(
+                _currentDevice, siteOwlXY, lat, lon, userXY, userFacing, confidence));
+        }
+
         private IEnumerator CaptureWithPhoto(
-            DeviceData device,
-            Vector2 siteOwlXY,
-            double? latitude,
-            double? longitude,
-            Vector2 userXY,
-            float userFacing,
+            DeviceData device, Vector2 siteOwlXY,
+            double? lat, double? lon,
+            Vector2 userXY, float userFacing,
             CoordinateConfidence confidence)
         {
-            string photoPath = null;
-            bool photoComplete = false;
-            
-            // Take photo
-            PhotoCapture.TakePhoto(device.DeviceID, (path) =>
-            {
-                photoPath = path;
-                photoComplete = true;
-            });
-            
-            // Wait for photo — hard deadline prevents infinite hang on camera failure
-            float deadline = Time.time + PhotoTimeoutSeconds;
-            yield return new WaitUntil(() => photoComplete || Time.time > deadline);
+            string photoPath    = null;
+            bool   photoReady   = false;
 
-            if (!photoComplete)
+            PhotoCapture.TakePhoto(device.DeviceID, path =>
             {
-                Debug.LogError("[CaptureController] Photo capture timed out.");
-                OnCaptureError?.Invoke("Photo capture timed out");
-                isCapturing = false;
-                CaptureUI?.ShowCapturingState(false);
+                photoPath  = path;
+                photoReady = true;
+            });
+
+            float deadline = Time.time + PhotoTimeoutSeconds;
+            yield return new WaitUntil(() => photoReady || Time.time > deadline);
+
+            if (!photoReady || string.IsNullOrEmpty(photoPath))
+            {
+                Fail(photoReady ? "Photo save failed" : "Photo capture timed out");
                 yield break;
             }
-            
-            if (string.IsNullOrEmpty(photoPath))
-            {
-                OnCaptureError?.Invoke("Photo capture failed");
-                isCapturing = false;
-                CaptureUI?.ShowCapturingState(false);
-                yield break;
-            }
-            
-            // Record the capture
+
             device.RecordCapture(
-                siteOwlXY.x,
-                siteOwlXY.y,
-                latitude,
-                longitude,
-                photoPath,
-                confidence,
-                userXY.x,
-                userXY.y,
-                userFacing
-            );
-            
-            // Save to CSV
+                siteOwlXY.x, siteOwlXY.y,
+                lat, lon,
+                photoPath, confidence,
+                userXY.x, userXY.y, userFacing);
+
             if (CsvManager.UpdateDevice(device))
             {
-                Debug.Log($"[CaptureController] Captured {device.DeviceName} at ({siteOwlXY.x:F2}, {siteOwlXY.y:F2}) " +
-                    $"with confidence {confidence}, photo: {photoPath}");
-                
+                Debug.Log($"[CaptureController] Captured {device.DeviceName} " +
+                          $"({siteOwlXY.x:F2},{siteOwlXY.y:F2}) conf={confidence}");
                 OnCaptureComplete?.Invoke(device);
                 CaptureUI?.ShowCaptureSuccess(device);
             }
             else
             {
-                OnCaptureError?.Invoke("Failed to save to CSV");
+                Fail("Failed to save to CSV");
+                yield break;
             }
-            
-            isCapturing = false;
+
+            _isCapturing = false;
             CaptureUI?.ShowCapturingState(false);
         }
-        
-        private void OnPhotoSaved(string path)
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+
+        public bool GetCapturePoint(out Vector3 worldPoint, out float distance)
         {
-            // Handled in coroutine
+            worldPoint = Vector3.zero; distance = 0f;
+            if (CameraTransform == null) return false;
+
+            var ray = new Ray(CameraTransform.position, CameraTransform.forward);
+            if (Physics.Raycast(ray, out RaycastHit hit, MaxRaycastDistance, RaycastLayers))
+            {
+                worldPoint = hit.point;
+                distance   = hit.distance;
+            }
+            else
+            {
+                worldPoint = ray.GetPoint(MaxRaycastDistance);
+                distance   = MaxRaycastDistance;
+            }
+            return true;
         }
-        
-        private void OnPhotoCaptureError(string error)
+
+        private void GetGps(out double? lat, out double? lon)
         {
-            Debug.LogError($"[CaptureController] Photo error: {error}");
-            // Handled in coroutine
+            lat = null; lon = null;
+            if (GpsManager == null || !GpsManager.IsGpsReady) return;
+            var (la, lo, _, _) = GpsManager.CaptureGps();
+            lat = la; lon = lo;
         }
-        
-        /// <summary>
-        /// Attempts to get GPS coordinates from Android location services.
-        /// This is secondary/estimated data.
-        /// </summary>
-        private void GetGpsCoordinates(out double? latitude, out double? longitude)
+
+        private void Fail(string msg)
         {
-            latitude = null;
-            longitude = null;
-            
-            // Only works on Android
-            if (Application.platform != RuntimePlatform.Android)
-            {
-                return;
-            }
-            
-            try
-            {
-                if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(
-                    UnityEngine.Android.Permission.FineLocation))
-                {
-                    Debug.Log("[CaptureController] GPS permission not granted");
-                    return;
-                }
-                
-                if (!Input.location.isEnabledByUser)
-                {
-                    Debug.Log("[CaptureController] GPS not enabled");
-                    return;
-                }
-                
-                // Start if not already running
-                if (Input.location.status == LocationServiceStatus.Stopped)
-                {
-                    Input.location.Start();
-                }
-                
-                if (Input.location.status == LocationServiceStatus.Running)
-                {
-                    latitude = Input.location.lastData.latitude;
-                    longitude = Input.location.lastData.longitude;
-                    
-                    Debug.Log($"[CaptureController] GPS acquired: {latitude}, {longitude} " +
-                        $"(accuracy: {Input.location.lastData.horizontalAccuracy}m)");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[CaptureController] GPS error: {ex.Message}");
-            }
+            Debug.LogError($"[CaptureController] {msg}");
+            OnCaptureError?.Invoke(msg);
+            _isCapturing = false;
+            CaptureUI?.ShowCapturingState(false);
         }
-        
-        /// <summary>
-        /// Shows a debug raycast line (for development).
-        /// </summary>
-        void Update()
-        {
-            if (CameraTransform != null && Calibration != null && Calibration.IsCalibrated)
-            {
-                // Visualize raycast in editor
-                #if UNITY_EDITOR
-                Debug.DrawRay(CameraTransform.position, CameraTransform.forward * MaxRaycastDistance, Color.cyan);
-                #endif
-            }
-        }
-        
-        /// <summary>
-        /// Called by AiCopilotUI after the user accepts or skips an AI suggestion.
-        /// Resumes the capture → CSV write step.
-        /// </summary>
-        public void ProceedWithCapture()
-        {
-            if (currentDevice == null)
-            {
-                OnCaptureError?.Invoke("No device selected");
-                return;
-            }
-            CaptureCurrentDevice();
-        }
+
+        private void OnPhotoSaved(string _)   { /* handled in coroutine */ }
+        private void OnPhotoCaptureError(string _) { /* handled in coroutine */ }
 
         void OnDestroy()
         {
